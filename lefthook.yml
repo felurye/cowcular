@@ -1,0 +1,6 @@
+pre-commit:
+  commands:
+    biome:
+      glob: "*.{ts,tsx,js,jsx,mjs,cjs}"
+      run: pnpm biome check --write --staged {staged_files}
+      stage_fixed: true
