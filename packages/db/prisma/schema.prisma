@@ -1,0 +1,251 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum GroupType {
+  HOME
+  EVENT
+}
+
+enum EventType {
+  TRIP
+  BBQ
+  GIFT
+  FUNDRAISER
+  GENERAL
+}
+
+enum GroupStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum ClosingMode {
+  AUTO
+  MANUAL
+}
+
+enum MemberRole {
+  ADMIN
+  MEMBER
+}
+
+enum AccountType {
+  EXPENSE
+  INCOME
+}
+
+enum Recurrence {
+  ONCE
+  RECURRING
+  INSTALLMENT
+}
+
+enum AccountStatus {
+  OPEN
+  PAID
+  DEFERRED
+  CLOSED
+}
+
+enum SplitStatus {
+  PENDING
+  PAID
+}
+
+enum TransferStatus {
+  PENDING
+  AWAITING_CONFIRMATION
+  CONFIRMED
+  OFFSET
+  EXTERNAL_PAID
+}
+
+enum BalanceStatus {
+  OPEN
+  CLOSED
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+model User {
+  id              String   @id @default(cuid())
+  username        String   @unique
+  email           String   @unique
+  name            String
+  avatar          String?
+  defaultCurrency String   @default("BRL")
+  passwordHash    String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  groupMembers  GroupMember[]
+  categories    Category[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Group {
+  id           String      @id @default(cuid())
+  name         String
+  type         GroupType
+  eventType    EventType?
+  code         String      @unique
+  status       GroupStatus @default(ACTIVE)
+  defaultSplit Json?
+  closingMode  ClosingMode?
+  closedAt     DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  members  GroupMember[]
+  accounts Account[]
+  transfers Transfer[]
+  balances MonthlyBalance[]
+
+  @@map("groups")
+}
+
+model GroupMember {
+  id              String     @id @default(cuid())
+  groupId         String
+  userId          String?
+  externalName    String?
+  externalContact String?
+  role            MemberRole @default(MEMBER)
+  joinedAt        DateTime   @default(now())
+  leftAt          DateTime?
+
+  group  Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id])
+
+  accountsPaid  Account[]     @relation("PaidBy")
+  accountSplits AccountSplit[]
+  transfersFrom Transfer[]    @relation("TransferFrom")
+  transfersTo   Transfer[]    @relation("TransferTo")
+
+  @@map("group_members")
+}
+
+model Account {
+  id                String        @id @default(cuid())
+  title             String
+  amount            Decimal       @db.Decimal(12, 2)
+  currency          String        @default("BRL")
+  dueDate           DateTime?
+  categoryId        String?
+  type              AccountType
+  recurrence        Recurrence    @default(ONCE)
+  totalInstallments Int?
+  installmentNumber Int?
+  status            AccountStatus @default(OPEN)
+  groupId           String?
+  paidByMemberId    String?
+  originAccountId   String?
+  originMonth       DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  group           Group?        @relation(fields: [groupId], references: [id])
+  paidBy          GroupMember?  @relation("PaidBy", fields: [paidByMemberId], references: [id])
+  category        Category?     @relation(fields: [categoryId], references: [id])
+  originAccount   Account?      @relation("AccountDeferral", fields: [originAccountId], references: [id])
+  deferredFrom    Account[]     @relation("AccountDeferral")
+  splits          AccountSplit[]
+  transfers       Transfer[]    @relation("AccountTransfers")
+
+  @@map("accounts")
+}
+
+model AccountSplit {
+  id         String      @id @default(cuid())
+  accountId  String
+  memberId   String
+  percentage Decimal     @db.Decimal(5, 2)
+  amountDue  Decimal     @db.Decimal(12, 2)
+  amountPaid Decimal     @default(0) @db.Decimal(12, 2)
+  status     SplitStatus @default(PENDING)
+
+  account Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  member  GroupMember @relation(fields: [memberId], references: [id])
+
+  @@map("account_splits")
+}
+
+model Transfer {
+  id               String         @id @default(cuid())
+  fromMemberId     String
+  toMemberId       String
+  groupId          String
+  amount           Decimal        @db.Decimal(12, 2)
+  currency         String         @default("BRL")
+  month            Int?
+  year             Int?
+  status           TransferStatus @default(PENDING)
+  offsetTransferId String?
+  createdAt        DateTime       @default(now())
+  confirmedAt      DateTime?
+
+  fromMember     GroupMember @relation("TransferFrom", fields: [fromMemberId], references: [id])
+  toMember       GroupMember @relation("TransferTo", fields: [toMemberId], references: [id])
+  group          Group       @relation(fields: [groupId], references: [id])
+  offsetTransfer Transfer?   @relation("OffsetTransfer", fields: [offsetTransferId], references: [id])
+  offsetOf       Transfer[]  @relation("OffsetTransfer")
+  relatedAccounts Account[]  @relation("AccountTransfers")
+
+  @@map("transfers")
+}
+
+model Category {
+  id       String  @id @default(cuid())
+  name     String
+  icon     String?
+  isSystem Boolean @default(false)
+  userId   String?
+
+  user     User?     @relation(fields: [userId], references: [id])
+  accounts Account[]
+
+  @@map("categories")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  payload   Json
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model MonthlyBalance {
+  id           String        @id @default(cuid())
+  groupId      String
+  month        Int
+  year         Int
+  status       BalanceStatus @default(OPEN)
+  totalExpense Decimal       @db.Decimal(12, 2)
+  totalByMember Json
+  closedAt     DateTime?
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, month, year])
+  @@map("monthly_balances")
+}
