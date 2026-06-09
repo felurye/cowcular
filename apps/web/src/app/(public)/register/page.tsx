@@ -1,6 +1,27 @@
 "use client";
+
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+
+const inputStyle: React.CSSProperties = {
+  border: "1px solid var(--line-strong)",
+  borderRadius: 11,
+  padding: "10px 14px",
+  fontSize: 14,
+  fontFamily: "var(--font-body)",
+  color: "var(--ink)",
+  background: "var(--surface)",
+  width: "100%",
+  outline: "none",
+  transition: "border-color .15s",
+};
+
+const labelStyle: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 600,
+  color: "var(--ink-soft)",
+};
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -54,18 +75,72 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <span className="text-5xl">🐄</span>
-          <h1 className="text-2xl font-bold mt-3 text-zinc-900">Conta criada!</h1>
+      <div style={{ width: "100%", maxWidth: 380, textAlign: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 10,
+            marginBottom: 28,
+          }}
+        >
+          <Image
+            src="/cow.png"
+            width={40}
+            height={40}
+            alt="Cowcular"
+            style={{ objectFit: "contain" }}
+          />
+          <span
+            style={{
+              fontFamily: "var(--font-display)",
+              fontWeight: 800,
+              fontSize: 28,
+              letterSpacing: "-0.02em",
+              color: "var(--ink)",
+            }}
+          >
+            cow<span style={{ color: "var(--amber-deep)" }}>cular</span>
+          </span>
         </div>
-        <div className="bg-white rounded-xl border border-zinc-200 shadow-sm p-6 flex flex-col gap-4 text-center">
-          <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+        <div
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--line)",
+            borderRadius: 18,
+            padding: 28,
+            boxShadow: "0 2px 12px -4px rgba(40,30,10,.08)",
+          }}
+        >
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
+          <h1
+            style={{
+              margin: "0 0 8px",
+              fontSize: 22,
+              fontWeight: 800,
+              fontFamily: "var(--font-display)",
+              color: "var(--ink)",
+            }}
+          >
+            Conta criada!
+          </h1>
+          <p style={{ fontSize: 14, color: "var(--ink-soft)", margin: "0 0 20px" }}>
             Sua conta foi criada com sucesso. Faça login para continuar.
           </p>
           <Link
             href="/login"
-            className="bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg py-2.5 transition-colors"
+            style={{
+              display: "block",
+              background: "var(--amber)",
+              color: "#3a2a08",
+              fontWeight: 680,
+              fontSize: 14.5,
+              borderRadius: 11,
+              padding: "11px 20px",
+              textDecoration: "none",
+              textAlign: "center",
+            }}
           >
             Ir para o login
           </Link>
@@ -75,104 +150,183 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="w-full max-w-sm">
-      <div className="text-center mb-8">
-        <span className="text-5xl">🐄</span>
-        <h1 className="text-2xl font-bold mt-3 text-zinc-900">Criar conta</h1>
-      </div>
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white rounded-xl border border-zinc-200 shadow-sm p-6 flex flex-col gap-4"
-      >
-        {error && (
-          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-            {error}
-          </p>
-        )}
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="name" className="text-sm font-medium text-zinc-700">
-            Nome
-          </label>
-          <input
-            id="name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="João Silva"
-            required
-            className="border border-zinc-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="username" className="text-sm font-medium text-zinc-700">
-            Username
-          </label>
-          <input
-            id="username"
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="joao_silva"
-            required
-            className="border border-zinc-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="email" className="text-sm font-medium text-zinc-700">
-            E-mail
-          </label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="joao@exemplo.com"
-            required
-            className="border border-zinc-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="password" className="text-sm font-medium text-zinc-700">
-            Senha
-          </label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            required
-            className="border border-zinc-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="confirmPassword" className="text-sm font-medium text-zinc-700">
-            Confirmar senha
-          </label>
-          <input
-            id="confirmPassword"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="••••••••"
-            required
-            className="border border-zinc-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-medium rounded-lg py-2.5 transition-colors"
+    <div style={{ width: "100%", maxWidth: 380 }}>
+      {/* Logo */}
+      <div style={{ textAlign: "center", marginBottom: 28 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 10,
+            marginBottom: 8,
+          }}
         >
-          {loading ? "Criando conta..." : "Criar conta"}
-        </button>
-        <p className="text-center text-sm text-zinc-500">
-          Já tem conta?{" "}
-          <Link href="/login" className="text-amber-600 hover:underline font-medium">
-            Entrar
-          </Link>
+          <Image
+            src="/cow.png"
+            width={40}
+            height={40}
+            alt="Cowcular"
+            style={{ objectFit: "contain" }}
+          />
+          <span
+            style={{
+              fontFamily: "var(--font-display)",
+              fontWeight: 800,
+              fontSize: 28,
+              letterSpacing: "-0.02em",
+              color: "var(--ink)",
+            }}
+          >
+            cow<span style={{ color: "var(--amber-deep)" }}>cular</span>
+          </span>
+        </div>
+        <p style={{ fontSize: 14.5, color: "var(--ink-soft)", margin: 0 }}>
+          Controle financeiro compartilhado
         </p>
-      </form>
+      </div>
+
+      {/* Card */}
+      <div
+        style={{
+          background: "var(--surface)",
+          border: "1px solid var(--line)",
+          borderRadius: 18,
+          padding: 28,
+          boxShadow: "0 2px 12px -4px rgba(40,30,10,.08)",
+        }}
+      >
+        <h1
+          style={{
+            margin: "0 0 20px",
+            fontSize: 20,
+            fontWeight: 800,
+            fontFamily: "var(--font-display)",
+            letterSpacing: "-0.01em",
+            color: "var(--ink)",
+          }}
+        >
+          Criar conta
+        </h1>
+
+        {error && (
+          <div
+            style={{
+              background: "rgba(194,96,63,.1)",
+              border: "1px solid rgba(194,96,63,.3)",
+              borderRadius: 10,
+              padding: "10px 14px",
+              fontSize: 13.5,
+              color: "var(--coral)",
+              marginBottom: 16,
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label htmlFor="name" style={labelStyle}>
+              Nome
+            </label>
+            <input
+              id="name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="João Silva"
+              required
+              style={inputStyle}
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label htmlFor="username" style={labelStyle}>
+              Username
+            </label>
+            <input
+              id="username"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="joao_silva"
+              required
+              style={inputStyle}
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label htmlFor="email" style={labelStyle}>
+              E-mail
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="joao@exemplo.com"
+              required
+              style={inputStyle}
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label htmlFor="password" style={labelStyle}>
+              Senha
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              style={inputStyle}
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label htmlFor="confirmPassword" style={labelStyle}>
+              Confirmar senha
+            </label>
+            <input
+              id="confirmPassword"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              style={inputStyle}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              background: loading ? "var(--amber-soft)" : "var(--amber)",
+              color: "#3a2a08",
+              fontFamily: "var(--font-body)",
+              fontWeight: 680,
+              fontSize: 14.5,
+              border: "none",
+              borderRadius: 11,
+              padding: "11px 20px",
+              width: "100%",
+              cursor: loading ? "not-allowed" : "pointer",
+              marginTop: 4,
+              transition: "background .15s",
+            }}
+          >
+            {loading ? "Criando conta..." : "Criar conta"}
+          </button>
+          <p style={{ textAlign: "center", fontSize: 13.5, color: "var(--ink-soft)", margin: 0 }}>
+            Já tem conta?{" "}
+            <Link
+              href="/login"
+              style={{ color: "var(--amber-deep)", fontWeight: 600, textDecoration: "none" }}
+            >
+              Entrar
+            </Link>
+          </p>
+        </form>
+      </div>
     </div>
   );
 }
