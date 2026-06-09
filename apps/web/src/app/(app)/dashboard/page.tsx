@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { useAuthStore } from "@/store/auth";
 
 type EventType = "TRIP" | "BBQ" | "GIFT" | "FUNDRAISER" | "GENERAL";
 type GroupType = "HOME" | "EVENT";
@@ -22,6 +23,51 @@ interface Group {
   members: GroupMember[];
 }
 
+interface DashTransfer {
+  id: string;
+  amount: string | number;
+  currency: string;
+  month: number;
+  year: number;
+  status: string;
+  fromMember: {
+    userId: string | null;
+    user: { name: string } | null;
+    externalName: string | null;
+  };
+  toMember: {
+    userId: string | null;
+    user: { name: string } | null;
+    externalName: string | null;
+  };
+}
+
+interface DashAccount {
+  id: string;
+  title: string;
+  amount: string | number;
+  currency: string;
+  dueDate: string | null;
+  status: "OPEN" | "PAID" | "DEFERRED" | "CLOSED";
+  type: "EXPENSE" | "INCOME";
+  category: { name: string; color: string | null } | null;
+}
+
+const MONTH_NAMES = [
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
+];
+
 const GROUP_EMOJI: Record<string, string> = {
   HOME: "🏠",
   TRIP: "✈️",
@@ -39,9 +85,221 @@ const EVENT_LABEL: Record<string, string> = {
   GENERAL: "Despesas gerais",
 };
 
+function fmtAmount(v: number | string, currency = "BRL") {
+  return Number(v).toLocaleString("pt-BR", { style: "currency", currency });
+}
+
+function memberName(m: { user: { name: string } | null; externalName: string | null } | null) {
+  if (!m) return "?";
+  return m.user?.name ?? m.externalName ?? "Externo";
+}
+
+function fmtDate(iso: string | null) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+}
+
 function getGroupEmoji(type: GroupType, eventType: EventType | null) {
   if (type === "HOME") return GROUP_EMOJI.HOME;
   return GROUP_EMOJI[eventType ?? "GENERAL"] ?? "📋";
+}
+
+function StatCard({
+  label,
+  value,
+  color,
+  href,
+}: {
+  label: string;
+  value: string | number;
+  color?: string;
+  href?: string;
+}) {
+  const content = (
+    <div
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--line)",
+        borderRadius: 16,
+        padding: "18px 20px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+        flex: 1,
+      }}
+    >
+      <span
+        style={{
+          fontFamily: "var(--font-display)",
+          fontWeight: 800,
+          fontSize: 28,
+          color: color ?? "var(--ink)",
+          lineHeight: 1,
+        }}
+      >
+        {value}
+      </span>
+      <span style={{ fontSize: 13, color: "var(--ink-soft)", fontWeight: 560 }}>{label}</span>
+    </div>
+  );
+  if (href) {
+    return (
+      <a href={href} style={{ flex: 1, textDecoration: "none" }}>
+        {content}
+      </a>
+    );
+  }
+  return content;
+}
+
+function GroupUpcomingWidget({ groupId, groupName }: { groupId: string; groupName: string }) {
+  const now = new Date();
+  const { data } = trpc.accounts.list.useQuery({ groupId });
+  const upcoming =
+    (data as DashAccount[] | undefined)?.filter((a) => {
+      if (a.status !== "OPEN" || !a.dueDate) return false;
+      const d = new Date(a.dueDate);
+      const diffDays = (d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+      return diffDays >= -1 && diffDays <= 7;
+    }) ?? [];
+  if (!upcoming.length) return null;
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: 11.5,
+          fontWeight: 700,
+          letterSpacing: ".06em",
+          color: "var(--ink-faint)",
+          textTransform: "uppercase",
+          marginBottom: 6,
+          paddingLeft: 2,
+        }}
+      >
+        {groupName}
+      </div>
+      {upcoming.map((a) => (
+        <a
+          key={a.id}
+          href={`/groups/${groupId}`}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 14px",
+            background: "var(--surface)",
+            border: "1px solid var(--line)",
+            borderRadius: 12,
+            textDecoration: "none",
+            marginBottom: 6,
+          }}
+        >
+          <span style={{ fontSize: 15 }}>📅</span>
+          <span
+            style={{
+              flex: 1,
+              fontSize: 14,
+              fontWeight: 600,
+              color: "var(--ink)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {a.title}
+          </span>
+          {a.dueDate && (
+            <span
+              style={{
+                fontSize: 12,
+                color: "var(--coral)",
+                fontWeight: 650,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {fmtDate(a.dueDate)}
+            </span>
+          )}
+          <span
+            style={{
+              fontSize: 13.5,
+              fontWeight: 700,
+              color: "var(--ink)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {fmtAmount(a.amount, a.currency)}
+          </span>
+        </a>
+      ))}
+    </div>
+  );
+}
+
+function GroupDeferredWidget({ groupId, groupName }: { groupId: string; groupName: string }) {
+  const { data } = trpc.accounts.list.useQuery({ groupId, status: "DEFERRED" });
+  const deferred = (data as DashAccount[] | undefined) ?? [];
+  if (!deferred.length) return null;
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: 11.5,
+          fontWeight: 700,
+          letterSpacing: ".06em",
+          color: "var(--ink-faint)",
+          textTransform: "uppercase",
+          marginBottom: 6,
+          paddingLeft: 2,
+        }}
+      >
+        {groupName}
+      </div>
+      {deferred.map((a) => (
+        <a
+          key={a.id}
+          href={`/groups/${groupId}`}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 14px",
+            background: "rgba(232,162,61,.07)",
+            border: "1px solid rgba(232,162,61,.22)",
+            borderRadius: 12,
+            textDecoration: "none",
+            marginBottom: 6,
+          }}
+        >
+          <span style={{ fontSize: 15 }}>⏸</span>
+          <span
+            style={{
+              flex: 1,
+              fontSize: 14,
+              fontWeight: 600,
+              color: "var(--ink)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {a.title}
+          </span>
+          <span
+            style={{
+              fontSize: 13.5,
+              fontWeight: 700,
+              color: "var(--amber-deep)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {fmtAmount(a.amount, a.currency)}
+          </span>
+        </a>
+      ))}
+    </div>
+  );
 }
 
 function GroupCard({ group }: { group: Group }) {
@@ -183,11 +441,11 @@ function CreateGroupModal({ onClose }: { onClose: () => void }) {
   const utils = trpc.useUtils();
 
   const createMutation = trpc.groups.create.useMutation({
-    onSuccess: () => {
+    onSuccess: (): void => {
       void utils.groups.list.invalidate();
       onClose();
     },
-    onError: (err) => setError(err.message),
+    onError: (err: { message: string }): void => setError(err.message),
   });
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -256,7 +514,6 @@ function CreateGroupModal({ onClose }: { onClose: () => void }) {
         )}
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Type toggle */}
           <div
             style={{
               display: "flex",
@@ -388,15 +645,68 @@ function CreateGroupModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+function SectionHeader({ title, count }: { title: string; count?: number }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        marginBottom: 12,
+      }}
+    >
+      <h2
+        style={{
+          margin: 0,
+          fontSize: 15,
+          fontWeight: 750,
+          fontFamily: "var(--font-display)",
+          color: "var(--ink)",
+        }}
+      >
+        {title}
+      </h2>
+      {count != null && count > 0 && (
+        <span
+          style={{
+            background: "var(--surface-2)",
+            color: "var(--ink-soft)",
+            fontSize: 12,
+            fontWeight: 700,
+            padding: "2px 8px",
+            borderRadius: 8,
+          }}
+        >
+          {count}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
-  const { data: groups, isLoading } = trpc.groups.list.useQuery();
+  const user = useAuthStore((s) => s.user);
+  const { data: groups, isLoading: groupsLoading } = trpc.groups.list.useQuery();
+  const { data: transfers } = trpc.transfers.list.useQuery({}, { refetchInterval: 60_000 });
   const [showCreate, setShowCreate] = useState(false);
+
+  const allTransfers = (transfers as DashTransfer[] | undefined) ?? [];
+
+  const pendingToPay = allTransfers.filter(
+    (t) => t.fromMember.userId === user?.id && t.status === "PENDING",
+  );
+  const awaitingConfirm = allTransfers.filter(
+    (t) => t.toMember.userId === user?.id && t.status === "AWAITING_CONFIRMATION",
+  );
+  const actionTransfers = [...pendingToPay, ...awaitingConfirm].slice(0, 5);
+  const hasMoreActions = pendingToPay.length + awaitingConfirm.length > 5;
+
+  const homeGroups = (groups as Group[] | undefined)?.filter((g) => g.type === "HOME") ?? [];
 
   return (
     <>
       {showCreate && <CreateGroupModal onClose={() => setShowCreate(false)} />}
 
-      {/* Topbar */}
       <div
         style={{
           display: "flex",
@@ -425,7 +735,7 @@ export default function DashboardPage() {
             Dashboard
           </h1>
           <div style={{ marginTop: 3, fontSize: 13.5, color: "var(--ink-soft)" }}>
-            Seus grupos financeiros
+            Visão geral das suas finanças
           </div>
         </div>
         <button
@@ -452,68 +762,197 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {/* Content */}
-      <div style={{ padding: "24px 32px 60px" }}>
-        {isLoading ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
+      <div style={{ padding: "24px 32px 60px", display: "flex", flexDirection: "column", gap: 32 }}>
+        {/* Stats row */}
+        <div style={{ display: "flex", gap: 14 }}>
+          <StatCard
+            label="Repasses a pagar"
+            value={pendingToPay.length}
+            color={pendingToPay.length > 0 ? "var(--coral)" : "var(--ink)"}
+            href={pendingToPay.length > 0 ? "/repasses" : undefined}
+          />
+          <StatCard
+            label="Aguardando confirmação"
+            value={awaitingConfirm.length}
+            color={awaitingConfirm.length > 0 ? "var(--amber-deep)" : "var(--ink)"}
+            href={awaitingConfirm.length > 0 ? "/repasses" : undefined}
+          />
+          <StatCard label="Grupos ativos" value={groups?.length ?? 0} color="var(--teal-deep)" />
+        </div>
+
+        {/* Transfers needing action */}
+        {actionTransfers.length > 0 && (
+          <div>
+            <SectionHeader
+              title="Repasses que precisam de ação"
+              count={pendingToPay.length + awaitingConfirm.length}
+            />
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {actionTransfers.map((t) => {
+                const isSent = t.fromMember.userId === user?.id;
+                const other = isSent ? t.toMember : t.fromMember;
+                return (
+                  <a
+                    key={t.id}
+                    href="/repasses"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "12px 16px",
+                      background: "var(--surface)",
+                      border: `1px solid ${isSent ? "rgba(194,96,63,.25)" : "rgba(232,162,61,.25)"}`,
+                      borderRadius: 13,
+                      textDecoration: "none",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: "50%",
+                        display: "grid",
+                        placeItems: "center",
+                        fontSize: 14,
+                        background: isSent ? "rgba(194,96,63,.1)" : "rgba(232,162,61,.12)",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {isSent ? "↑" : "↓"}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 650, color: "var(--ink)" }}>
+                        {isSent
+                          ? `Pagar para ${memberName(other)}`
+                          : `Confirmar recebimento de ${memberName(other)}`}
+                      </div>
+                      <div style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 2 }}>
+                        {MONTH_NAMES[t.month - 1]} {t.year}
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        fontWeight: 700,
+                        fontSize: 15,
+                        color: isSent ? "var(--coral)" : "var(--amber-deep)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {fmtAmount(t.amount, t.currency)}
+                    </span>
+                  </a>
+                );
+              })}
+            </div>
+            {hasMoreActions && (
+              <a
+                href="/repasses"
                 style={{
-                  background: "var(--surface-2)",
-                  borderRadius: 18,
-                  height: 112,
-                  animation: "pulse 1.5s infinite",
+                  display: "block",
+                  textAlign: "center",
+                  marginTop: 8,
+                  fontSize: 13,
+                  color: "var(--amber-deep)",
+                  fontWeight: 650,
+                  textDecoration: "none",
                 }}
-              />
-            ))}
-          </div>
-        ) : groups?.length === 0 ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "80px 32px",
-              color: "var(--ink-faint)",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
-            <span style={{ fontSize: 52 }}>🐄</span>
-            <p style={{ fontSize: 15, margin: 0, color: "var(--ink-soft)" }}>Nenhum grupo ainda.</p>
-            <button
-              type="button"
-              onClick={() => setShowCreate(true)}
-              style={{
-                background: "var(--amber)",
-                color: "#3a2a08",
-                border: "none",
-                padding: "10px 20px",
-                fontSize: 14,
-                fontWeight: 680,
-                borderRadius: 11,
-                cursor: "pointer",
-                fontFamily: "var(--font-body)",
-                marginTop: 4,
-              }}
-            >
-              Criar o primeiro grupo
-            </button>
-          </div>
-        ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: 16,
-            }}
-          >
-            {groups?.map((group) => (
-              <GroupCard key={group.id} group={group} />
-            ))}
+              >
+                Ver todos os repasses →
+              </a>
+            )}
           </div>
         )}
+
+        {/* Upcoming accounts (7 days) */}
+        {(groups?.length ?? 0) > 0 && (
+          <div>
+            <SectionHeader title="Vencendo nos próximos 7 dias" />
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {(groups as Group[] | undefined)?.map((g) => (
+                <GroupUpcomingWidget key={g.id} groupId={g.id} groupName={g.name} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Deferred accounts (HOME groups only) */}
+        {homeGroups.length > 0 && (
+          <div>
+            <SectionHeader title="Contas adiadas" />
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {homeGroups.map((g) => (
+                <GroupDeferredWidget key={g.id} groupId={g.id} groupName={g.name} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Groups grid */}
+        <div>
+          <SectionHeader title="Seus grupos" count={groups?.length} />
+          {groupsLoading ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  style={{
+                    background: "var(--surface-2)",
+                    borderRadius: 18,
+                    height: 112,
+                    animation: "pulse 1.5s infinite",
+                  }}
+                />
+              ))}
+            </div>
+          ) : (groups?.length ?? 0) === 0 ? (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "60px 32px",
+                color: "var(--ink-faint)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <span style={{ fontSize: 52 }}>🐄</span>
+              <p style={{ fontSize: 15, margin: 0, color: "var(--ink-soft)" }}>
+                Nenhum grupo ainda.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowCreate(true)}
+                style={{
+                  background: "var(--amber)",
+                  color: "#3a2a08",
+                  border: "none",
+                  padding: "10px 20px",
+                  fontSize: 14,
+                  fontWeight: 680,
+                  borderRadius: 11,
+                  cursor: "pointer",
+                  fontFamily: "var(--font-body)",
+                  marginTop: 4,
+                }}
+              >
+                Criar o primeiro grupo
+              </button>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                gap: 16,
+              }}
+            >
+              {(groups as Group[] | undefined)?.map((group) => (
+                <GroupCard key={group.id} group={group} />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </>
   );
