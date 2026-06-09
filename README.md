@@ -1,4 +1,4 @@
-# 🐄 Cowcular
+# Cowcular
 
 > Controle financeiro compartilhado para lares, grupos e uso pessoal.
 
@@ -17,37 +17,8 @@ Cada usuário tem uma visão pessoal das suas finanças e acesso independente a 
 ## Pré-requisitos
 
 - Node.js 20+
-- pnpm 10+
-- PostgreSQL 15+ (ou Docker para subir via compose)
-
-## Banco de dados com Docker
-
-A forma mais rápida de ter o banco funcionando localmente é via Docker Compose. O projeto inclui PostgreSQL 16 e pgAdmin pré-configurados.
-
-**Pré-requisito:** Docker instalado ([docker.com](https://www.docker.com))
-
-```bash
-# Sobe PostgreSQL + pgAdmin em background
-docker compose up -d
-
-# Acompanhar logs
-docker compose logs -f
-
-# Parar os serviços (dados preservados)
-docker compose down
-
-# Parar e apagar todos os dados (reset total)
-docker compose down -v
-```
-
-| Serviço    | URL / Porta           | Credenciais padrão               |
-| ---------- | --------------------- | -------------------------------- |
-| PostgreSQL | `localhost:5432`      | user `user`, senha `password`    |
-| pgAdmin    | http://localhost:5050 | `admin@cowcular.local` / `admin` |
-
-O pgAdmin abre com o servidor **"Cowcular (local)"** já listado na barra lateral. Na primeira conexão ao banco, informe a senha `password`.
-
-Com os defaults do compose, o `.env` não precisa de alteração - o `DATABASE_URL` já aponta para `localhost:5432/cowcular`.
+- npm 10+
+- Conta no [Supabase](https://supabase.com)
 
 ## Setup local
 
@@ -56,7 +27,7 @@ Com os defaults do compose, o `.env` não precisa de alteração - o `DATABASE_U
 ```bash
 git clone https://github.com/seu-usuario/cowcular.git
 cd cowcular
-pnpm install
+npm install
 ```
 
 **2. Configure as variáveis de ambiente**
@@ -65,123 +36,73 @@ pnpm install
 cp .env.example .env
 ```
 
-Edite o `.env` com os valores do seu ambiente:
+Edite o `.env` com os valores do seu projeto no Supabase:
 
-| Variável              | Descrição                                       | Exemplo                                          |
-| --------------------- | ----------------------------------------------- | ------------------------------------------------ |
-| `DATABASE_URL`        | Connection string do PostgreSQL                 | `postgresql://user:pass@localhost:5432/cowcular` |
-| `AUTH_SECRET`         | Segredo para assinar tokens JWT (min. 32 chars) | `openssl rand -base64 32`                        |
-| `AUTH_URL`            | URL base do frontend                            | `http://localhost:3000`                          |
-| `API_URL`             | URL interna da API                              | `http://localhost:3001`                          |
-| `NEXT_PUBLIC_API_URL` | URL da API acessível pelo browser               | `http://localhost:3001`                          |
+| Variável                        | Descrição                  | Onde encontrar                    |
+| ------------------------------- | -------------------------- | --------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | URL do projeto Supabase    | Settings > API > Project URL      |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Chave anônima pública      | Settings > API > anon key         |
+| `SUPABASE_SERVICE_ROLE_KEY`     | Chave de serviço (privada) | Settings > API > service_role key |
 
-**3. Crie o banco e rode as migrations**
+**3. Configure o banco de dados**
 
-```bash
-pnpm --filter @cowcular/db run db:migrate
-```
+No Supabase, execute as migrations disponíveis em `packages/db/prisma/migrations/` pelo SQL Editor ou pela CLI do Supabase.
 
-O Prisma vai pedir um nome para a primeira migration (ex: `init`). O Docker Compose já cria o banco automaticamente.
-
-**4. Popule as categorias do sistema**
+**4. Inicie o ambiente de desenvolvimento**
 
 ```bash
-pnpm --filter @cowcular/db run db:seed
+npm run dev
 ```
 
-Isso cria as 8 categorias padrão: Moradia, Alimentação, Transporte, Saúde, Lazer, Serviços, Viagem e Outros. O script é idempotente - pode rodar várias vezes sem duplicar dados.
-
-**5. Inicie o ambiente de desenvolvimento**
-
-```bash
-pnpm dev
-```
-
-| App        | URL                        | Descrição                   |
-| ---------- | -------------------------- | --------------------------- |
-| Frontend   | http://localhost:3000      | Next.js App Router          |
-| Backend    | http://localhost:3001      | Hono + tRPC                 |
-| tRPC panel | http://localhost:3001/trpc | Endpoint tRPC (aceita POST) |
-
-## Testando a API
-
-Após o setup, você pode testar a autenticação diretamente:
-
-```bash
-# Cadastro
-curl -X POST http://localhost:3001/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"username":"joao","email":"joao@exemplo.com","name":"João","password":"senha1234"}'
-
-# Login
-curl -X POST http://localhost:3001/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"identifier":"joao","password":"senha1234"}'
-```
-
-O login retorna um `token` JWT. Use-o nos headers das chamadas tRPC:
-
-```
-Authorization: Bearer <token>
-```
+O app estará disponível em http://localhost:3000.
 
 ## Estrutura do projeto
 
 ```
 cowcular/
-  apps/
-    web/          Next.js App Router - frontend
-    api/          Hono - servidor HTTP + adaptador tRPC
-  packages/
-    db/           Prisma schema, client e migrations
-    trpc/         Routers tRPC compartilhados (auth, groups, accounts, transfers)
+  src/
+    app/
+      (public)/   páginas públicas (login, cadastro, join)
+      (app)/      páginas autenticadas (dashboard, grupos, repasses...)
+      api/        Route Handlers - lógica de negócio server-side
+    hooks/        hooks TanStack Query por domínio
+    lib/          clientes Supabase (browser, server, admin) e utilitários
+    providers/    QueryProvider (TanStack Query)
+    store/        estado global Zustand (usuário autenticado)
+    components/   componentes compartilhados (sidebar...)
+  public/         assets estáticos
 ```
-
-| Pacote          | Nome interno     | Descrição                                                |
-| --------------- | ---------------- | -------------------------------------------------------- |
-| `apps/web`      | `@cowcular/web`  | Frontend: Next.js, Tailwind CSS v4, Zustand, React Query |
-| `apps/api`      | `@cowcular/api`  | Backend: Hono 4, tRPC v11, bcryptjs, jose                |
-| `packages/db`   | `@cowcular/db`   | Prisma v6 + PostgreSQL - schema e client                 |
-| `packages/trpc` | `@cowcular/trpc` | Routers e tipos tRPC compartilhados                      |
 
 ## Comandos úteis
 
-| Comando                                      | Descrição                                                    |
-| -------------------------------------------- | ------------------------------------------------------------ |
-| `pnpm dev`                                   | Inicia todos os apps em paralelo (Turborepo)                 |
-| `pnpm build`                                 | Compila todos os pacotes e apps                              |
-| `pnpm lint`                                  | Executa o linter Biome                                       |
-| `pnpm lint:fix`                              | Lint com correção automática                                 |
-| `pnpm typecheck`                             | Verifica tipos TypeScript em todo o monorepo                 |
-| `pnpm --filter @cowcular/db run db:migrate`  | Cria e aplica migrations                                     |
-| `pnpm --filter @cowcular/db run db:seed`     | Roda o seed de dados                                         |
-| `pnpm --filter @cowcular/db run db:generate` | Regenera o Prisma Client                                     |
-| `pnpm db:studio`                             | Abre o Prisma Studio (GUI do banco) em http://localhost:5555 |
+| Comando             | Descrição                             |
+| ------------------- | ------------------------------------- |
+| `npm run dev`       | Inicia o servidor de desenvolvimento  |
+| `npm run build`     | Compila para produção                 |
+| `npm run typecheck` | Verifica tipos TypeScript             |
+| `npm run lint`      | Executa o linter Biome                |
+| `npm run lint:fix`  | Lint com correção automática          |
+| `npm run check:fix` | Lint + format com correção automática |
 
-Para rodar um comando em um pacote específico:
+## Variáveis de ambiente
 
-```bash
-pnpm --filter @cowcular/api dev
-pnpm --filter @cowcular/web dev
-```
+Todas as variáveis ficam no `.env` na raiz do projeto.
+
+| Variável                        | Visibilidade          | Uso                                 |
+| ------------------------------- | --------------------- | ----------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Pública (browser)     | Cliente Supabase no navegador       |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Pública (browser)     | Autenticação e queries com RLS      |
+| `SUPABASE_SERVICE_ROLE_KEY`     | Privada (server only) | API routes que precisam ignorar RLS |
 
 ## Stack
 
-| Camada       | Tecnologia                                                |
-| ------------ | --------------------------------------------------------- |
-| Frontend     | Next.js 16 (App Router), TypeScript, Tailwind CSS v4      |
-| Estado       | Zustand (auth global), TanStack Query (cache de servidor) |
-| Backend      | Hono 4, tRPC v11                                          |
-| Autenticação | JWT customizado com `jose`, bcryptjs                      |
-| ORM          | Prisma v6                                                 |
-| Banco        | PostgreSQL 15                                             |
-| Monorepo     | pnpm workspaces + Turborepo                               |
-| Linter       | Biome (lint + format)                                     |
-
-## Variáveis de ambiente por app
-
-Cada app lê as vars do `.env` na raiz do monorepo.
-
-**apps/api** usa: `DATABASE_URL`, `AUTH_SECRET`
-
-**apps/web** usa: `NEXT_PUBLIC_API_URL`
+| Camada         | Tecnologia                                                   |
+| -------------- | ------------------------------------------------------------ |
+| Frontend       | Next.js 16 (App Router), TypeScript, Tailwind CSS v4         |
+| Estado         | Zustand (auth global), TanStack Query v5 (cache de servidor) |
+| Backend        | Next.js API Route Handlers                                   |
+| Autenticação   | Supabase Auth (`@supabase/ssr`)                              |
+| Banco de dados | Supabase (PostgreSQL gerenciado)                             |
+| Gráficos       | Recharts                                                     |
+| Linter         | Biome (lint + format)                                        |
+| Deploy         | Vercel                                                       |

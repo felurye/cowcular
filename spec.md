@@ -268,34 +268,32 @@ Filtros aplicáveis: período, grupo, categoria, membro, status.
 10. Moeda é definida por conta; conversões não são realizadas automaticamente.
 11. Participantes externos não têm acesso ao sistema e não recebem notificações.
 
-## 6. Stack Recomendada
+## 6. Stack
 
 ### Frontend
 
-- **Next.js 14+ (App Router)** — SSR/SSG, rotas, middleware de autenticação.
+- **Next.js 16 (App Router)** — SSR/SSG, rotas, middleware de autenticação.
 - **TypeScript** — tipagem estática.
-- **Tailwind CSS** — estilização.
-- **shadcn/ui** — componentes acessíveis e customizáveis.
+- **Tailwind CSS v4** — estilização.
 - **Recharts** — gráficos do dashboard.
-- **Zustand** — estado global leve (grupo ativo, notificações).
+- **Zustand** — estado global leve (usuário autenticado).
+- **TanStack Query v5** — cache e sincronização de dados do servidor.
 
-### Backend
+### Backend / API
 
-- **Next.js API Routes + tRPC** — tipagem end-to-end entre front e back.
-- **Prisma ORM** — modelagem e queries com type safety.
-
-### Banco de Dados
-
-- **PostgreSQL** — relacional, ideal para divisões, repasses e histórico.
+- **Next.js API Route Handlers** — lógica de negócio exposta via `/api/*`.
+- **Supabase** — banco de dados PostgreSQL gerenciado + Auth + RLS.
+- **`@supabase/ssr`** — cliente com gerenciamento de sessão via cookies (middleware + API routes).
+- **`@supabase/supabase-js`** — cliente admin (service role) para operações sem RLS.
 
 ### Autenticação
 
-- **Auth.js v5 (NextAuth)** — credentials provider (e-mail/username + senha). Extensível para OAuth no futuro.
+- **Supabase Auth** — credentials provider (e-mail + senha). Login por username resolvido via lookup server-side. Extensível para OAuth no futuro.
 
 ### Infraestrutura
 
-- **Vercel** — deploy.
-- **Supabase** ou **Railway** — banco de dados.
+- **Vercel** — deploy do frontend/API.
+- **Supabase** — banco de dados, autenticação e armazenamento.
 - **Cloudflare** (opcional) — DNS e CDN.
 
 ## 7. Modelagem de Dados (Esboço)
