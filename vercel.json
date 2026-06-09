@@ -1,8 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/cron/monthly-close",
-      "schedule": "0 1 1 * *"
-    }
-  ]
-}
+{}
