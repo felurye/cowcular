@@ -1,3 +1,4 @@
+import type { Prisma } from "@cowcular/db";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure, router, z } from "../server.js";
 
@@ -88,7 +89,7 @@ export const accountsRouter = router({
         }
       }
 
-      return ctx.db.$transaction(async (tx) => {
+      return ctx.db.$transaction(async (tx: Prisma.TransactionClient) => {
         const account = await tx.account.create({
           data: {
             ...rest,

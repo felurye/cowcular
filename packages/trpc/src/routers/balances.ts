@@ -22,7 +22,7 @@ export async function performMonthClose(
     include: { splits: true },
   });
 
-  const totalExpense = accounts.reduce((sum, a) => sum + Number(a.amount), 0);
+  const totalExpense = accounts.reduce((sum: number, a) => sum + Number(a.amount), 0);
 
   // Saldo líquido por membro: positivo = recebe, negativo = deve
   const totalByMember: Record<string, number> = {};

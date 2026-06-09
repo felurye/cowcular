@@ -1,3 +1,4 @@
+import type { Prisma } from "@cowcular/db";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure, router, z } from "../server.js";
 
@@ -107,7 +108,7 @@ export const transfersRouter = router({
       const amtB = Number(transferB.amount);
       const net = Math.abs(amtA - amtB);
 
-      return ctx.db.$transaction(async (tx) => {
+      return ctx.db.$transaction(async (tx: Prisma.TransactionClient) => {
         let netTransfer = null;
 
         if (net > 0) {
