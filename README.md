@@ -18,7 +18,36 @@ Cada usuário tem uma visão pessoal das suas finanças e acesso independente a 
 
 - Node.js 20+
 - pnpm 10+
-- PostgreSQL 15+
+- PostgreSQL 15+ (ou Docker para subir via compose)
+
+## Banco de dados com Docker
+
+A forma mais rápida de ter o banco funcionando localmente é via Docker Compose. O projeto inclui PostgreSQL 16 e pgAdmin pré-configurados.
+
+**Pré-requisito:** Docker instalado ([docker.com](https://www.docker.com))
+
+```bash
+# Sobe PostgreSQL + pgAdmin em background
+docker compose up -d
+
+# Acompanhar logs
+docker compose logs -f
+
+# Parar os serviços (dados preservados)
+docker compose down
+
+# Parar e apagar todos os dados (reset total)
+docker compose down -v
+```
+
+| Serviço    | URL / Porta           | Credenciais padrão               |
+| ---------- | --------------------- | -------------------------------- |
+| PostgreSQL | `localhost:5432`      | user `user`, senha `password`    |
+| pgAdmin    | http://localhost:5050 | `admin@cowcular.local` / `admin` |
+
+O pgAdmin abre com o servidor **"Cowcular (local)"** já listado na barra lateral. Na primeira conexão ao banco, informe a senha `password`.
+
+Com os defaults do compose, o `.env` não precisa de alteração - o `DATABASE_URL` já aponta para `localhost:5432/cowcular`.
 
 ## Setup local
 
@@ -49,20 +78,15 @@ Edite o `.env` com os valores do seu ambiente:
 **3. Crie o banco e rode as migrations**
 
 ```bash
-# Cria as tabelas no banco
-pnpm --filter @cowcular/db exec prisma migrate dev --name init
+pnpm --filter @cowcular/db run db:migrate
 ```
 
-Se o banco ainda não existir, crie-o antes:
-
-```sql
-CREATE DATABASE cowcular;
-```
+O Prisma vai pedir um nome para a primeira migration (ex: `init`). O Docker Compose já cria o banco automaticamente.
 
 **4. Popule as categorias do sistema**
 
 ```bash
-pnpm --filter @cowcular/db exec prisma db seed
+pnpm --filter @cowcular/db run db:seed
 ```
 
 Isso cria as 8 categorias padrão: Moradia, Alimentação, Transporte, Saúde, Lazer, Serviços, Viagem e Outros. O script é idempotente - pode rodar várias vezes sem duplicar dados.
@@ -122,17 +146,17 @@ cowcular/
 
 ## Comandos úteis
 
-| Comando                                              | Descrição                                                    |
-| ---------------------------------------------------- | ------------------------------------------------------------ |
-| `pnpm dev`                                           | Inicia todos os apps em paralelo (Turborepo)                 |
-| `pnpm build`                                         | Compila todos os pacotes e apps                              |
-| `pnpm lint`                                          | Executa o linter Biome                                       |
-| `pnpm lint:fix`                                      | Lint com correção automática                                 |
-| `pnpm typecheck`                                     | Verifica tipos TypeScript em todo o monorepo                 |
-| `pnpm --filter @cowcular/db exec prisma migrate dev` | Cria e aplica migrations                                     |
-| `pnpm --filter @cowcular/db exec prisma db seed`     | Roda o seed de dados                                         |
-| `pnpm --filter @cowcular/db exec prisma generate`    | Regenera o Prisma Client                                     |
-| `pnpm db:studio`                                     | Abre o Prisma Studio (GUI do banco) em http://localhost:5555 |
+| Comando                                      | Descrição                                                    |
+| -------------------------------------------- | ------------------------------------------------------------ |
+| `pnpm dev`                                   | Inicia todos os apps em paralelo (Turborepo)                 |
+| `pnpm build`                                 | Compila todos os pacotes e apps                              |
+| `pnpm lint`                                  | Executa o linter Biome                                       |
+| `pnpm lint:fix`                              | Lint com correção automática                                 |
+| `pnpm typecheck`                             | Verifica tipos TypeScript em todo o monorepo                 |
+| `pnpm --filter @cowcular/db run db:migrate`  | Cria e aplica migrations                                     |
+| `pnpm --filter @cowcular/db run db:seed`     | Roda o seed de dados                                         |
+| `pnpm --filter @cowcular/db run db:generate` | Regenera o Prisma Client                                     |
+| `pnpm db:studio`                             | Abre o Prisma Studio (GUI do banco) em http://localhost:5555 |
 
 Para rodar um comando em um pacote específico:
 
