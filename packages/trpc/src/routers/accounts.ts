@@ -173,6 +173,7 @@ export const accountsRouter = router({
           }
         }
       } else {
+        if (!account.paidByMemberId) throw new TRPCError({ code: "FORBIDDEN" });
         const paidByMember = await ctx.db.groupMember.findUnique({
           where: { id: account.paidByMemberId },
         });
@@ -203,6 +204,7 @@ export const accountsRouter = router({
         });
         if (!member) throw new TRPCError({ code: "FORBIDDEN" });
       } else {
+        if (!account.paidByMemberId) throw new TRPCError({ code: "FORBIDDEN" });
         const paidByMember = await ctx.db.groupMember.findUnique({
           where: { id: account.paidByMemberId },
         });

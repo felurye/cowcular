@@ -68,7 +68,7 @@ export default function LoginPage() {
         });
       }
       const redirectTo = new URLSearchParams(window.location.search).get("redirect");
-      router.push(redirectTo && redirectTo.startsWith("/") ? redirectTo : "/dashboard");
+      router.push(redirectTo?.startsWith("/") ? redirectTo : "/dashboard");
     } catch {
       setError("Erro ao conectar com o servidor.");
     } finally {

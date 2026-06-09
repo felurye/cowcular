@@ -1694,7 +1694,7 @@ function MembersTab({
                   <button
                     type="button"
                     disabled={removeMutation.isPending}
-                    onClick={() => removeMutation.mutate({ id: m.id })}
+                    onClick={() => removeMutation.mutate({ memberId: m.id })}
                     style={{
                       background: "none",
                       border: "none",
@@ -1729,11 +1729,11 @@ function BalanceTab({ group, isAdmin }: { group: Group; isAdmin: boolean }) {
   const { data: balances, isLoading } = trpc.balances.list.useQuery({ groupId: group.id });
 
   const closeMutation = trpc.balances.close.useMutation({
-    onSuccess: () => {
+    onSuccess: (): void => {
       void utils.balances.list.invalidate({ groupId: group.id });
       setError("");
     },
-    onError: (e) => setError(e.message),
+    onError: (e: { message: string }): void => setError(e.message),
   });
 
   if (isLoading) {
@@ -1882,12 +1882,12 @@ export default function GroupPage() {
   const { data: group, isLoading, error } = trpc.groups.byId.useQuery({ id: params.id });
 
   const closeMutation = trpc.groups.close.useMutation({
-    onSuccess: () => {
+    onSuccess: (): void => {
       void utils.groups.byId.invalidate({ id: params.id });
       void utils.groups.list.invalidate();
       setShowCloseConfirm(false);
     },
-    onError: (e) => setCloseError(e.message),
+    onError: (e: { message: string }): void => setCloseError(e.message),
   });
 
   if (isLoading) {
