@@ -40,7 +40,7 @@
   },
   "overrides": [
     {
-      "includes": ["apps/web/**"],
+      "includes": ["src/**"],
       "linter": {
         "rules": {
           "correctness": {
