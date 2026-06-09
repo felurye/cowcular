@@ -102,13 +102,25 @@ function UserInitials({ name }: { name: string }) {
   );
 }
 
+type SidebarGroup = {
+  id: string;
+  name: string;
+  type: string;
+  eventType: string | null;
+};
+
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
-  const { data: groups } = trpc.groups.list.useQuery();
+  const { data: rawGroups } = trpc.groups.list.useQuery();
+  const groups = rawGroups as SidebarGroup[] | undefined;
   const { data: transfers } = trpc.transfers.list.useQuery({}, { refetchInterval: 30_000 });
+
+  const { data: notifications } = trpc.notifications.list.useQuery(undefined, {
+    refetchInterval: 30_000,
+  });
 
   const pendingTransfers =
     (
@@ -124,6 +136,9 @@ export function Sidebar() {
         (t.fromMember.userId === user?.id && t.status === "PENDING") ||
         (t.toMember.userId === user?.id && t.status === "AWAITING_CONFIRMATION"),
     ).length ?? 0;
+
+  const unreadNotifications =
+    (notifications as Array<{ read: boolean }> | undefined)?.filter((n) => !n.read).length ?? 0;
 
   const handleLogout = () => {
     logout();
@@ -180,11 +195,13 @@ export function Sidebar() {
           active={pathname === "/repasses"}
           badge={pendingTransfers}
         />
+        <NavItem icon="▤" label="Relatórios" href="/reports" active={pathname === "/reports"} />
         <NavItem
-          icon="▤"
-          label="Relatórios"
-          href="/relatorios"
-          active={pathname === "/relatorios"}
+          icon="🔔"
+          label="Notificações"
+          href="/notifications"
+          active={pathname === "/notifications"}
+          badge={unreadNotifications}
         />
       </div>
 
@@ -261,11 +278,13 @@ export function Sidebar() {
           marginTop: 12,
         }}
       >
-        {user && <UserInitials name={user.name} />}
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <Link href="/profile" style={{ textDecoration: "none", flexShrink: 0 }}>
+          {user && <UserInitials name={user.name} />}
+        </Link>
+        <Link href="/profile" style={{ flex: 1, minWidth: 0, textDecoration: "none" }}>
           <div style={{ fontWeight: 700, fontSize: 13.5, color: "var(--ink)" }}>{user?.name}</div>
           <div style={{ fontSize: 12, color: "var(--ink-faint)" }}>@{user?.username}</div>
-        </div>
+        </Link>
         <button
           type="button"
           onClick={handleLogout}
