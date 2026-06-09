@@ -7,6 +7,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { createContext } from "./context.js";
 import { authRoutes } from "./routes/auth.js";
+import { cronRoutes } from "./routes/cron.js";
 
 const app = new Hono();
 
@@ -20,6 +21,7 @@ app.use(
 );
 
 app.route("/auth", authRoutes);
+app.route("/cron", cronRoutes);
 
 app.all("/trpc/*", (c) =>
   fetchRequestHandler({
