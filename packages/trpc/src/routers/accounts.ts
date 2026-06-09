@@ -76,22 +76,142 @@ export const accountsRouter = router({
         if (!member) throw new TRPCError({ code: "FORBIDDEN" });
       }
 
-      return ctx.db.account.create({
-        data: {
-          ...rest,
-          amount,
-          splits: splits
-            ? {
-                create: splits.map((s) => ({
-                  memberId: s.memberId,
-                  percentage: s.percentage,
-                  amountDue: (amount * s.percentage) / 100,
-                })),
-              }
-            : undefined,
-        },
-        include: { splits: true },
+      let effectiveSplits = splits;
+      if (!effectiveSplits && input.groupId) {
+        const group = await ctx.db.group.findUnique({ where: { id: input.groupId } });
+        if (group?.defaultSplit) {
+          const ds = group.defaultSplit as Record<string, number>;
+          effectiveSplits = Object.entries(ds).map(([memberId, percentage]) => ({
+            memberId,
+            percentage,
+          }));
+        }
+      }
+
+      return ctx.db.$transaction(async (tx) => {
+        const account = await tx.account.create({
+          data: {
+            ...rest,
+            amount,
+            splits: effectiveSplits
+              ? {
+                  create: effectiveSplits.map((s) => ({
+                    memberId: s.memberId,
+                    percentage: s.percentage,
+                    amountDue: (amount * s.percentage) / 100,
+                  })),
+                }
+              : undefined,
+          },
+          include: { splits: true },
+        });
+
+        if (input.groupId && input.paidByMemberId && effectiveSplits?.length) {
+          const dueDate = input.dueDate ?? new Date();
+          const month = dueDate.getMonth() + 1;
+          const year = dueDate.getFullYear();
+          for (const split of effectiveSplits) {
+            if (split.memberId === input.paidByMemberId) continue;
+            const transferAmount = (input.amount * split.percentage) / 100;
+            if (transferAmount <= 0) continue;
+            await tx.transfer.create({
+              data: {
+                fromMemberId: split.memberId,
+                toMemberId: input.paidByMemberId,
+                groupId: input.groupId,
+                amount: transferAmount,
+                currency: input.currency ?? "BRL",
+                month,
+                year,
+                relatedAccounts: { connect: { id: account.id } },
+              },
+            });
+          }
+        }
+
+        return account;
       });
+    }),
+
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        title: z.string().min(1).max(200).optional(),
+        amount: z.number().positive().optional(),
+        currency: z.string().optional(),
+        dueDate: z.date().optional(),
+        categoryId: z.string().nullable().optional(),
+        type: z.enum(["EXPENSE", "INCOME"]).optional(),
+        recurrence: z.enum(["ONCE", "RECURRING", "INSTALLMENT"]).optional(),
+        totalInstallments: z.number().int().positive().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...data } = input;
+
+      const account = await ctx.db.account.findUnique({
+        where: { id },
+        include: { group: true },
+      });
+      if (!account) throw new TRPCError({ code: "NOT_FOUND" });
+
+      if (account.groupId) {
+        const member = await ctx.db.groupMember.findFirst({
+          where: { groupId: account.groupId, userId: ctx.session.userId, leftAt: null },
+        });
+        if (!member) throw new TRPCError({ code: "FORBIDDEN" });
+
+        if (account.dueDate) {
+          const month = account.dueDate.getMonth() + 1;
+          const year = account.dueDate.getFullYear();
+          const balance = await ctx.db.monthlyBalance.findUnique({
+            where: { groupId_month_year: { groupId: account.groupId, month, year } },
+          });
+          if (balance?.status === "CLOSED") {
+            return { requiresConfirmation: true };
+          }
+        }
+      } else {
+        const paidByMember = await ctx.db.groupMember.findUnique({
+          where: { id: account.paidByMemberId },
+        });
+        if (paidByMember?.userId !== ctx.session.userId) {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+      }
+
+      return ctx.db.account.update({ where: { id }, data });
+    }),
+
+  delete: protectedProcedure
+    .input(z.object({ id: z.string(), force: z.boolean().default(false) }))
+    .mutation(async ({ ctx, input }) => {
+      const account = await ctx.db.account.findUnique({
+        where: { id: input.id },
+        include: { group: true },
+      });
+      if (!account) throw new TRPCError({ code: "NOT_FOUND" });
+
+      if (account.status === "PAID" && !input.force) {
+        return { requiresConfirmation: true };
+      }
+
+      if (account.groupId) {
+        const member = await ctx.db.groupMember.findFirst({
+          where: { groupId: account.groupId, userId: ctx.session.userId, leftAt: null },
+        });
+        if (!member) throw new TRPCError({ code: "FORBIDDEN" });
+      } else {
+        const paidByMember = await ctx.db.groupMember.findUnique({
+          where: { id: account.paidByMemberId },
+        });
+        if (paidByMember?.userId !== ctx.session.userId) {
+          throw new TRPCError({ code: "FORBIDDEN" });
+        }
+      }
+
+      return ctx.db.account.delete({ where: { id: input.id } });
     }),
 
   markPaid: protectedProcedure

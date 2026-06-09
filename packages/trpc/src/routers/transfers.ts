@@ -56,4 +56,89 @@ export const transfersRouter = router({
         data: { status: "CONFIRMED", confirmedAt: new Date() },
       });
     }),
+
+  offset: protectedProcedure
+    .input(
+      z.object({
+        transferId: z.string(),
+        offsetWithTransferId: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [transferA, transferB] = await Promise.all([
+        ctx.db.transfer.findUnique({
+          where: { id: input.transferId },
+          include: { fromMember: true, toMember: true },
+        }),
+        ctx.db.transfer.findUnique({
+          where: { id: input.offsetWithTransferId },
+          include: { fromMember: true, toMember: true },
+        }),
+      ]);
+
+      if (!transferA || !transferB) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const userId = ctx.session.userId;
+      const isParticipant =
+        transferA.fromMember.userId === userId ||
+        transferA.toMember.userId === userId ||
+        transferB.fromMember.userId === userId ||
+        transferB.toMember.userId === userId;
+      if (!isParticipant) throw new TRPCError({ code: "FORBIDDEN" });
+
+      const isOpposite =
+        transferA.fromMemberId === transferB.toMemberId &&
+        transferA.toMemberId === transferB.fromMemberId;
+      if (!isOpposite)
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Repasses devem ser entre os mesmos membros em direções opostas.",
+        });
+
+      const eligible = ["PENDING", "AWAITING_CONFIRMATION"];
+      if (!eligible.includes(transferA.status) || !eligible.includes(transferB.status)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Apenas repasses pendentes podem ser abatidos.",
+        });
+      }
+
+      const amtA = Number(transferA.amount);
+      const amtB = Number(transferB.amount);
+      const net = Math.abs(amtA - amtB);
+
+      return ctx.db.$transaction(async (tx) => {
+        let netTransfer = null;
+
+        if (net > 0) {
+          const [from, to] =
+            amtA > amtB
+              ? [transferA.fromMemberId, transferA.toMemberId]
+              : [transferB.fromMemberId, transferB.toMemberId];
+
+          netTransfer = await tx.transfer.create({
+            data: {
+              fromMemberId: from,
+              toMemberId: to,
+              groupId: transferA.groupId,
+              amount: net,
+              currency: transferA.currency,
+              month: transferA.month,
+              year: transferA.year,
+            },
+          });
+        }
+
+        await tx.transfer.update({
+          where: { id: input.transferId },
+          data: { status: "OFFSET", offsetTransferId: input.offsetWithTransferId },
+        });
+        await tx.transfer.update({
+          where: { id: input.offsetWithTransferId },
+          data: { status: "OFFSET", offsetTransferId: input.transferId },
+        });
+
+        return { transferA, transferB, netTransfer: netTransfer ?? null };
+      });
+    }),
 });
