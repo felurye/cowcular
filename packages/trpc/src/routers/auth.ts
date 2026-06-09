@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
-import { publicProcedure, router, z } from "../server.js";
+import bcrypt from "bcryptjs";
+import { protectedProcedure, publicProcedure, router, z } from "../server.js";
 
 export const authRouter = router({
   me: publicProcedure.query(({ ctx }) => {
@@ -42,5 +43,59 @@ export const authRouter = router({
         code: "BAD_REQUEST",
         message: "Use o endpoint de registro diretamente.",
       });
+    }),
+
+  updateProfile: protectedProcedure
+    .input(
+      z.object({
+        name: z.string().min(1).max(100).optional(),
+        avatar: z.string().url().nullable().optional(),
+        defaultCurrency: z.string().length(3).optional(),
+      }),
+    )
+    .mutation(({ ctx, input }) => {
+      return ctx.db.user.update({
+        where: { id: ctx.session.userId },
+        data: input,
+        select: {
+          id: true,
+          username: true,
+          name: true,
+          email: true,
+          avatar: true,
+          defaultCurrency: true,
+        },
+      });
+    }),
+
+  changePassword: protectedProcedure
+    .input(
+      z.object({
+        currentPassword: z.string(),
+        newPassword: z.string().min(8),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const user = await ctx.db.user.findUnique({
+        where: { id: ctx.session.userId },
+        select: { id: true, passwordHash: true },
+      });
+
+      if (!user) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      const valid = await bcrypt.compare(input.currentPassword, user.passwordHash);
+      if (!valid) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Senha atual incorreta." });
+      }
+
+      const newHash = await bcrypt.hash(input.newPassword, 12);
+      await ctx.db.user.update({
+        where: { id: ctx.session.userId },
+        data: { passwordHash: newHash },
+      });
+
+      return { success: true };
     }),
 });
