@@ -8,6 +8,7 @@ const PROTECTED_PREFIXES = [
   "/reports",
   "/profile",
   "/notifications",
+  "/repasses",
 ];
 const PUBLIC_ONLY_PREFIXES = ["/login", "/register"];
 
