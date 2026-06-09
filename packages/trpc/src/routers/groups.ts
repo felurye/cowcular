@@ -233,4 +233,72 @@ export const groupsRouter = router({
 
       return member;
     }),
+
+  addExternal: protectedProcedure
+    .input(
+      z.object({
+        groupId: z.string(),
+        externalName: z.string().min(1).max(100),
+        externalContact: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const group = await ctx.db.group.findUnique({ where: { id: input.groupId } });
+      if (!group) throw new TRPCError({ code: "NOT_FOUND" });
+      if (group.type !== "EVENT")
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Participantes externos só são permitidos em Grupos Avulsos.",
+        });
+
+      const callerMember = await ctx.db.groupMember.findFirst({
+        where: { groupId: input.groupId, userId: ctx.session.userId, leftAt: null },
+      });
+      if (!callerMember) throw new TRPCError({ code: "FORBIDDEN" });
+
+      return ctx.db.groupMember.create({
+        data: {
+          groupId: input.groupId,
+          userId: null,
+          externalName: input.externalName,
+          externalContact: input.externalContact ?? null,
+          role: "MEMBER",
+        },
+      });
+    }),
+
+  removeExternal: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const member = await ctx.db.groupMember.findUnique({ where: { id: input.id } });
+      if (!member) throw new TRPCError({ code: "NOT_FOUND" });
+      if (member.userId !== null)
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Use removeMember para membros cadastrados.",
+        });
+
+      const adminMember = await ctx.db.groupMember.findFirst({
+        where: { groupId: member.groupId, userId: ctx.session.userId, role: "ADMIN", leftAt: null },
+      });
+      if (!adminMember) throw new TRPCError({ code: "FORBIDDEN" });
+
+      const splitCount = await ctx.db.accountSplit.count({ where: { memberId: input.id } });
+      if (splitCount > 0)
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Participante possui contas associadas e não pode ser removido.",
+        });
+
+      const transferCount = await ctx.db.transfer.count({
+        where: { OR: [{ fromMemberId: input.id }, { toMemberId: input.id }] },
+      });
+      if (transferCount > 0)
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Participante possui transferências associadas e não pode ser removido.",
+        });
+
+      return ctx.db.groupMember.delete({ where: { id: input.id } });
+    }),
 });
