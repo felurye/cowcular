@@ -11,7 +11,7 @@ const PROTECTED_PREFIXES = [
 ];
 const PUBLIC_ONLY_PREFIXES = ["/login", "/register"];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const token = request.cookies.get("auth_token")?.value;
   const { pathname } = request.nextUrl;
 
