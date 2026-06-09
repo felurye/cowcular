@@ -2,6 +2,7 @@ import { prisma } from "@cowcular/db";
 import bcrypt from "bcryptjs";
 import { Hono } from "hono";
 import { z } from "zod";
+import { signToken } from "../lib/jwt.js";
 
 export const authRoutes = new Hono();
 
@@ -57,13 +58,10 @@ authRoutes.post("/login", async (c) => {
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) return c.json({ error: "Credenciais inválidas." }, 401);
 
-  // TODO: gerar JWT real com jose
-  const token = Buffer.from(
-    JSON.stringify({ sub: user.id, iat: Math.floor(Date.now() / 1000) }),
-  ).toString("base64");
+  const token = await signToken(user.id);
 
   return c.json({
-    token: `header.${token}.signature`,
+    token,
     user: { id: user.id, username: user.username, name: user.name, email: user.email },
   });
 });
