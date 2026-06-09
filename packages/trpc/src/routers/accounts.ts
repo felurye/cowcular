@@ -16,8 +16,8 @@ export const accountsRouter = router({
         personal: z.boolean().optional(),
         status: z.enum(["OPEN", "PAID", "DEFERRED", "CLOSED"]).optional(),
         categoryId: z.string().uuid().optional(),
-        from: z.date().optional(),
-        to: z.date().optional(),
+        from: z.coerce.date().optional(),
+        to: z.coerce.date().optional(),
       }),
     )
     .query(({ ctx, input }) =>
@@ -55,7 +55,7 @@ export const accountsRouter = router({
         title: z.string().min(1).max(200),
         amount: z.number().positive(),
         currency: z.string().default("BRL"),
-        dueDate: z.date().optional(),
+        dueDate: z.coerce.date().optional(),
         categoryId: z.string().uuid().optional(),
         type: z.enum(["EXPENSE", "INCOME"]),
         recurrence: z.enum(["ONCE", "RECURRING", "INSTALLMENT"]).default("ONCE"),
@@ -140,7 +140,7 @@ export const accountsRouter = router({
         title: z.string().min(1).max(200).optional(),
         amount: z.number().positive().optional(),
         currency: z.string().optional(),
-        dueDate: z.date().optional(),
+        dueDate: z.coerce.date().optional(),
         categoryId: z.string().uuid().nullable().optional(),
         type: z.enum(["EXPENSE", "INCOME"]).optional(),
         recurrence: z.enum(["ONCE", "RECURRING", "INSTALLMENT"]).optional(),
@@ -223,7 +223,7 @@ export const accountsRouter = router({
     }),
 
   defer: protectedProcedure
-    .input(z.object({ id: z.string().uuid(), targetMonth: z.date() }))
+    .input(z.object({ id: z.string().uuid(), targetMonth: z.coerce.date() }))
     .mutation(async ({ ctx, input }) => {
       const origin = await ctx.db.account.findUnique({
         where: { id: input.id },
