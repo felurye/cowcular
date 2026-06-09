@@ -301,4 +301,72 @@ export const groupsRouter = router({
 
       return ctx.db.groupMember.delete({ where: { id: input.id } });
     }),
+
+  removeMember: protectedProcedure
+    .input(z.object({ memberId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const member = await ctx.db.groupMember.findUnique({ where: { id: input.memberId } });
+      if (!member) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const adminMember = await ctx.db.groupMember.findFirst({
+        where: { groupId: member.groupId, userId: ctx.session.userId, role: "ADMIN", leftAt: null },
+      });
+      if (!adminMember) throw new TRPCError({ code: "FORBIDDEN" });
+
+      if (member.userId === ctx.session.userId)
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Use o procedimento leave para sair do grupo.",
+        });
+
+      if (member.role === "ADMIN") {
+        const otherAdminCount = await ctx.db.groupMember.count({
+          where: {
+            groupId: member.groupId,
+            role: "ADMIN",
+            leftAt: null,
+            id: { not: member.id },
+          },
+        });
+        if (otherAdminCount === 0)
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Não é possível remover o único admin.",
+          });
+      }
+
+      return ctx.db.groupMember.update({
+        where: { id: input.memberId },
+        data: { leftAt: new Date() },
+      });
+    }),
+
+  transferAdmin: protectedProcedure
+    .input(z.object({ groupId: z.string(), newAdminMemberId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const callerMember = await ctx.db.groupMember.findFirst({
+        where: { groupId: input.groupId, userId: ctx.session.userId, role: "ADMIN", leftAt: null },
+      });
+      if (!callerMember) throw new TRPCError({ code: "FORBIDDEN" });
+
+      const targetMember = await ctx.db.groupMember.findUnique({
+        where: { id: input.newAdminMemberId },
+      });
+      if (!targetMember || targetMember.leftAt !== null) throw new TRPCError({ code: "NOT_FOUND" });
+
+      if (callerMember.id === input.newAdminMemberId) throw new TRPCError({ code: "CONFLICT" });
+
+      const [from, to] = await ctx.db.$transaction([
+        ctx.db.groupMember.update({
+          where: { id: callerMember.id },
+          data: { role: "MEMBER" },
+        }),
+        ctx.db.groupMember.update({
+          where: { id: targetMember.id },
+          data: { role: "ADMIN" },
+        }),
+      ]);
+
+      return { from, to };
+    }),
 });
