@@ -45,41 +45,47 @@ export const groupsRouter = router({
       });
     }),
 
-  byId: protectedProcedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
-    const group = await ctx.db.group.findFirst({
-      where: { id: input.id, members: { some: { userId: ctx.session.userId } } },
-      include: {
-        members: {
-          include: { user: { select: { id: true, username: true, name: true, avatar: true } } },
+  byId: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const group = await ctx.db.group.findFirst({
+        where: { id: input.id, members: { some: { userId: ctx.session.userId } } },
+        include: {
+          members: {
+            include: { user: { select: { id: true, username: true, name: true, avatar: true } } },
+          },
+          balances: { orderBy: [{ year: "desc" }, { month: "desc" }], take: 12 },
         },
-        balances: { orderBy: [{ year: "desc" }, { month: "desc" }], take: 12 },
-      },
-    });
-    if (!group) throw new TRPCError({ code: "NOT_FOUND" });
-    return group;
-  }),
+      });
+      if (!group) throw new TRPCError({ code: "NOT_FOUND" });
+      return group;
+    }),
 
-  close: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
-    const member = await ctx.db.groupMember.findFirst({
-      where: { groupId: input.id, userId: ctx.session.userId, role: "ADMIN", leftAt: null },
-    });
-    if (!member) throw new TRPCError({ code: "FORBIDDEN" });
-    return ctx.db.group.update({
-      where: { id: input.id },
-      data: { status: "CLOSED", closedAt: new Date() },
-    });
-  }),
+  close: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const member = await ctx.db.groupMember.findFirst({
+        where: { groupId: input.id, userId: ctx.session.userId, role: "ADMIN", leftAt: null },
+      });
+      if (!member) throw new TRPCError({ code: "FORBIDDEN" });
+      return ctx.db.group.update({
+        where: { id: input.id },
+        data: { status: "CLOSED", closedAt: new Date() },
+      });
+    }),
 
-  leave: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
-    const member = await ctx.db.groupMember.findFirst({
-      where: { groupId: input.id, userId: ctx.session.userId, leftAt: null },
-    });
-    if (!member) throw new TRPCError({ code: "NOT_FOUND" });
-    return ctx.db.groupMember.update({ where: { id: member.id }, data: { leftAt: new Date() } });
-  }),
+  leave: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const member = await ctx.db.groupMember.findFirst({
+        where: { groupId: input.id, userId: ctx.session.userId, leftAt: null },
+      });
+      if (!member) throw new TRPCError({ code: "NOT_FOUND" });
+      return ctx.db.groupMember.update({ where: { id: member.id }, data: { leftAt: new Date() } });
+    }),
 
   update: protectedProcedure
-    .input(z.object({ id: z.string(), name: z.string().min(1).max(100) }))
+    .input(z.object({ id: z.string().uuid(), name: z.string().min(1).max(100) }))
     .mutation(async ({ ctx, input }) => {
       const adminMember = await ctx.db.groupMember.findFirst({
         where: { groupId: input.id, userId: ctx.session.userId, role: "ADMIN", leftAt: null },
@@ -91,9 +97,9 @@ export const groupsRouter = router({
   updateDefaultSplit: protectedProcedure
     .input(
       z.object({
-        id: z.string(),
+        id: z.string().uuid(),
         split: z
-          .array(z.object({ memberId: z.string(), percentage: z.number().positive() }))
+          .array(z.object({ memberId: z.string().uuid(), percentage: z.number().positive() }))
           .refine(
             (s) => Math.abs(s.reduce((sum, x) => sum + x.percentage, 0) - 100) < 0.01,
             "A divisão deve somar 100%.",
@@ -167,7 +173,7 @@ export const groupsRouter = router({
     }),
 
   inviteByUsername: protectedProcedure
-    .input(z.object({ groupId: z.string(), username: z.string() }))
+    .input(z.object({ groupId: z.string().uuid(), username: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const adminMember = await ctx.db.groupMember.findFirst({
         where: { groupId: input.groupId, userId: ctx.session.userId, role: "ADMIN", leftAt: null },
@@ -201,7 +207,7 @@ export const groupsRouter = router({
     }),
 
   inviteByEmail: protectedProcedure
-    .input(z.object({ groupId: z.string(), email: z.string().email() }))
+    .input(z.object({ groupId: z.string().uuid(), email: z.string().email() }))
     .mutation(async ({ ctx, input }) => {
       const adminMember = await ctx.db.groupMember.findFirst({
         where: { groupId: input.groupId, userId: ctx.session.userId, role: "ADMIN", leftAt: null },
@@ -237,7 +243,7 @@ export const groupsRouter = router({
   addExternal: protectedProcedure
     .input(
       z.object({
-        groupId: z.string(),
+        groupId: z.string().uuid(),
         externalName: z.string().min(1).max(100),
         externalContact: z.string().optional(),
       }),
@@ -268,7 +274,7 @@ export const groupsRouter = router({
     }),
 
   removeExternal: protectedProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const member = await ctx.db.groupMember.findUnique({ where: { id: input.id } });
       if (!member) throw new TRPCError({ code: "NOT_FOUND" });
@@ -303,7 +309,7 @@ export const groupsRouter = router({
     }),
 
   removeMember: protectedProcedure
-    .input(z.object({ memberId: z.string() }))
+    .input(z.object({ memberId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const member = await ctx.db.groupMember.findUnique({ where: { id: input.memberId } });
       if (!member) throw new TRPCError({ code: "NOT_FOUND" });
@@ -342,7 +348,7 @@ export const groupsRouter = router({
     }),
 
   transferAdmin: protectedProcedure
-    .input(z.object({ groupId: z.string(), newAdminMemberId: z.string() }))
+    .input(z.object({ groupId: z.string().uuid(), newAdminMemberId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const callerMember = await ctx.db.groupMember.findFirst({
         where: { groupId: input.groupId, userId: ctx.session.userId, role: "ADMIN", leftAt: null },

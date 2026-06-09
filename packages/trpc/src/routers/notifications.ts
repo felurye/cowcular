@@ -8,12 +8,14 @@ export const notificationsRouter = router({
     }),
   ),
 
-  markRead: protectedProcedure.input(z.object({ id: z.string() })).mutation(({ ctx, input }) =>
-    ctx.db.notification.update({
-      where: { id: input.id, userId: ctx.session.userId },
-      data: { read: true },
-    }),
-  ),
+  markRead: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(({ ctx, input }) =>
+      ctx.db.notification.update({
+        where: { id: input.id, userId: ctx.session.userId },
+        data: { read: true },
+      }),
+    ),
 
   markAllRead: protectedProcedure.mutation(async ({ ctx }) => {
     const result = await ctx.db.notification.updateMany({

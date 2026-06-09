@@ -30,7 +30,7 @@ export const categoriesRouter = router({
     }),
 
   delete: protectedProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const category = await ctx.db.category.findUnique({
         where: { id: input.id },

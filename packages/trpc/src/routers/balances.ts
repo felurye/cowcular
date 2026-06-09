@@ -53,7 +53,7 @@ export async function performMonthClose(
 }
 
 export const balancesRouter = router({
-  list: protectedProcedure.input(z.object({ groupId: z.string() })).query(({ ctx, input }) =>
+  list: protectedProcedure.input(z.object({ groupId: z.string().uuid() })).query(({ ctx, input }) =>
     ctx.db.monthlyBalance.findMany({
       where: { groupId: input.groupId },
       orderBy: [{ year: "desc" }, { month: "desc" }],
@@ -63,7 +63,7 @@ export const balancesRouter = router({
   close: protectedProcedure
     .input(
       z.object({
-        groupId: z.string(),
+        groupId: z.string().uuid(),
         month: z.number().int().min(1).max(12),
         year: z.number().int().min(2020),
       }),

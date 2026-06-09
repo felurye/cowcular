@@ -3,7 +3,7 @@ import { protectedProcedure, router, z } from "../server.js";
 
 export const transfersRouter = router({
   list: protectedProcedure
-    .input(z.object({ groupId: z.string().optional() }))
+    .input(z.object({ groupId: z.string().uuid().optional() }))
     .query(({ ctx, input }) =>
       ctx.db.transfer.findMany({
         where: {
@@ -22,7 +22,7 @@ export const transfersRouter = router({
     ),
 
   markPaid: protectedProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const transfer = await ctx.db.transfer.findFirst({
         where: { id: input.id, fromMember: { userId: ctx.session.userId } },
@@ -41,7 +41,7 @@ export const transfersRouter = router({
     }),
 
   confirm: protectedProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const transfer = await ctx.db.transfer.findFirst({
         where: {
@@ -60,8 +60,8 @@ export const transfersRouter = router({
   offset: protectedProcedure
     .input(
       z.object({
-        transferId: z.string(),
-        offsetWithTransferId: z.string(),
+        transferId: z.string().uuid(),
+        offsetWithTransferId: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {

@@ -80,7 +80,7 @@ enum BalanceStatus {
 // ---------------------------------------------------------------------------
 
 model User {
-  id              String   @id @default(cuid())
+  id              String   @id @default(uuid()) @db.Uuid
   username        String   @unique
   email           String   @unique
   name            String
@@ -98,17 +98,17 @@ model User {
 }
 
 model Group {
-  id           String      @id @default(cuid())
+  id           String       @id @default(uuid()) @db.Uuid
   name         String
   type         GroupType
   eventType    EventType?
-  code         String      @unique
-  status       GroupStatus @default(ACTIVE)
+  code         String       @unique
+  status       GroupStatus  @default(ACTIVE)
   defaultSplit Json?
   closingMode  ClosingMode?
   closedAt     DateTime?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   members  GroupMember[]
   accounts Account[]
@@ -119,9 +119,9 @@ model Group {
 }
 
 model GroupMember {
-  id              String     @id @default(cuid())
-  groupId         String
-  userId          String?
+  id              String     @id @default(uuid()) @db.Uuid
+  groupId         String     @db.Uuid
+  userId          String?    @db.Uuid
   externalName    String?
   externalContact String?
   role            MemberRole @default(MEMBER)
@@ -140,20 +140,20 @@ model GroupMember {
 }
 
 model Account {
-  id                String        @id @default(cuid())
+  id                String        @id @default(uuid()) @db.Uuid
   title             String
   amount            Decimal       @db.Decimal(12, 2)
   currency          String        @default("BRL")
   dueDate           DateTime?
-  categoryId        String?
+  categoryId        String?       @db.Uuid
   type              AccountType
   recurrence        Recurrence    @default(ONCE)
   totalInstallments Int?
   installmentNumber Int?
   status            AccountStatus @default(OPEN)
-  groupId           String?
-  paidByMemberId    String?
-  originAccountId   String?
+  groupId           String?       @db.Uuid
+  paidByMemberId    String?       @db.Uuid
+  originAccountId   String?       @db.Uuid
   originMonth       DateTime?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
@@ -170,9 +170,9 @@ model Account {
 }
 
 model AccountSplit {
-  id         String      @id @default(cuid())
-  accountId  String
-  memberId   String
+  id         String      @id @default(uuid()) @db.Uuid
+  accountId  String      @db.Uuid
+  memberId   String      @db.Uuid
   percentage Decimal     @db.Decimal(5, 2)
   amountDue  Decimal     @db.Decimal(12, 2)
   amountPaid Decimal     @default(0) @db.Decimal(12, 2)
@@ -185,16 +185,16 @@ model AccountSplit {
 }
 
 model Transfer {
-  id               String         @id @default(cuid())
-  fromMemberId     String
-  toMemberId       String
-  groupId          String
+  id               String         @id @default(uuid()) @db.Uuid
+  fromMemberId     String         @db.Uuid
+  toMemberId       String         @db.Uuid
+  groupId          String         @db.Uuid
   amount           Decimal        @db.Decimal(12, 2)
   currency         String         @default("BRL")
   month            Int?
   year             Int?
   status           TransferStatus @default(PENDING)
-  offsetTransferId String?
+  offsetTransferId String?        @db.Uuid
   createdAt        DateTime       @default(now())
   confirmedAt      DateTime?
 
@@ -209,11 +209,11 @@ model Transfer {
 }
 
 model Category {
-  id       String  @id @default(cuid())
+  id       String  @id @default(uuid()) @db.Uuid
   name     String
   icon     String?
   isSystem Boolean @default(false)
-  userId   String?
+  userId   String? @db.Uuid
 
   user     User?     @relation(fields: [userId], references: [id])
   accounts Account[]
@@ -222,8 +222,8 @@ model Category {
 }
 
 model Notification {
-  id        String   @id @default(cuid())
-  userId    String
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
   type      String
   payload   Json
   read      Boolean  @default(false)
@@ -235,8 +235,8 @@ model Notification {
 }
 
 model MonthlyBalance {
-  id           String        @id @default(cuid())
-  groupId      String
+  id           String        @id @default(uuid()) @db.Uuid
+  groupId      String        @db.Uuid
   month        Int
   year         Int
   status       BalanceStatus @default(OPEN)

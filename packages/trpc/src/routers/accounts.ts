@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { protectedProcedure, router, z } from "../server.js";
 
 const splitSchema = z
-  .array(z.object({ memberId: z.string(), percentage: z.number().positive() }))
+  .array(z.object({ memberId: z.string().uuid(), percentage: z.number().positive() }))
   .refine((splits) => {
     const total = splits.reduce((sum, s) => sum + s.percentage, 0);
     return Math.abs(total - 100) < 0.01;
@@ -12,10 +12,10 @@ export const accountsRouter = router({
   list: protectedProcedure
     .input(
       z.object({
-        groupId: z.string().optional(),
+        groupId: z.string().uuid().optional(),
         personal: z.boolean().optional(),
         status: z.enum(["OPEN", "PAID", "DEFERRED", "CLOSED"]).optional(),
-        categoryId: z.string().optional(),
+        categoryId: z.string().uuid().optional(),
         from: z.date().optional(),
         to: z.date().optional(),
       }),
@@ -56,13 +56,13 @@ export const accountsRouter = router({
         amount: z.number().positive(),
         currency: z.string().default("BRL"),
         dueDate: z.date().optional(),
-        categoryId: z.string().optional(),
+        categoryId: z.string().uuid().optional(),
         type: z.enum(["EXPENSE", "INCOME"]),
         recurrence: z.enum(["ONCE", "RECURRING", "INSTALLMENT"]).default("ONCE"),
         totalInstallments: z.number().int().positive().optional(),
         installmentNumber: z.number().int().positive().optional(),
-        groupId: z.string().optional(),
-        paidByMemberId: z.string(),
+        groupId: z.string().uuid().optional(),
+        paidByMemberId: z.string().uuid(),
         splits: splitSchema.optional(),
       }),
     )
@@ -136,12 +136,12 @@ export const accountsRouter = router({
   update: protectedProcedure
     .input(
       z.object({
-        id: z.string(),
+        id: z.string().uuid(),
         title: z.string().min(1).max(200).optional(),
         amount: z.number().positive().optional(),
         currency: z.string().optional(),
         dueDate: z.date().optional(),
-        categoryId: z.string().nullable().optional(),
+        categoryId: z.string().uuid().nullable().optional(),
         type: z.enum(["EXPENSE", "INCOME"]).optional(),
         recurrence: z.enum(["ONCE", "RECURRING", "INSTALLMENT"]).optional(),
         totalInstallments: z.number().int().positive().nullable().optional(),
@@ -185,7 +185,7 @@ export const accountsRouter = router({
     }),
 
   delete: protectedProcedure
-    .input(z.object({ id: z.string(), force: z.boolean().default(false) }))
+    .input(z.object({ id: z.string().uuid(), force: z.boolean().default(false) }))
     .mutation(async ({ ctx, input }) => {
       const account = await ctx.db.account.findUnique({
         where: { id: input.id },
@@ -215,7 +215,7 @@ export const accountsRouter = router({
     }),
 
   markPaid: protectedProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const account = await ctx.db.account.findUnique({ where: { id: input.id } });
       if (!account) throw new TRPCError({ code: "NOT_FOUND" });
@@ -223,7 +223,7 @@ export const accountsRouter = router({
     }),
 
   defer: protectedProcedure
-    .input(z.object({ id: z.string(), targetMonth: z.date() }))
+    .input(z.object({ id: z.string().uuid(), targetMonth: z.date() }))
     .mutation(async ({ ctx, input }) => {
       const origin = await ctx.db.account.findUnique({
         where: { id: input.id },
