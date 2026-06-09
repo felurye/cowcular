@@ -76,4 +76,58 @@ export const groupsRouter = router({
     if (!member) throw new TRPCError({ code: "NOT_FOUND" });
     return ctx.db.groupMember.update({ where: { id: member.id }, data: { leftAt: new Date() } });
   }),
+
+  update: protectedProcedure
+    .input(z.object({ id: z.string(), name: z.string().min(1).max(100) }))
+    .mutation(async ({ ctx, input }) => {
+      const adminMember = await ctx.db.groupMember.findFirst({
+        where: { groupId: input.id, userId: ctx.session.userId, role: "ADMIN", leftAt: null },
+      });
+      if (!adminMember) throw new TRPCError({ code: "FORBIDDEN" });
+      return ctx.db.group.update({ where: { id: input.id }, data: { name: input.name } });
+    }),
+
+  updateDefaultSplit: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        split: z
+          .array(z.object({ memberId: z.string(), percentage: z.number().positive() }))
+          .refine(
+            (s) => Math.abs(s.reduce((sum, x) => sum + x.percentage, 0) - 100) < 0.01,
+            "A divisão deve somar 100%.",
+          ),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const adminMember = await ctx.db.groupMember.findFirst({
+        where: { groupId: input.id, userId: ctx.session.userId, role: "ADMIN", leftAt: null },
+      });
+      if (!adminMember) throw new TRPCError({ code: "FORBIDDEN" });
+
+      const group = await ctx.db.group.findUnique({ where: { id: input.id } });
+      if (!group) throw new TRPCError({ code: "NOT_FOUND" });
+      if (group.type !== "HOME")
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Divisão padrão disponível apenas para Lares.",
+        });
+
+      for (const entry of input.split) {
+        const activeMember = await ctx.db.groupMember.findFirst({
+          where: { id: entry.memberId, groupId: input.id, leftAt: null },
+        });
+        if (!activeMember)
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Membro ${entry.memberId} não encontrado ou inativo no grupo.`,
+          });
+      }
+
+      const splitMap = Object.fromEntries(input.split.map((s) => [s.memberId, s.percentage]));
+      return ctx.db.group.update({
+        where: { id: input.id },
+        data: { defaultSplit: splitMap },
+      });
+    }),
 });
