@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
-import { protectedProcedure, router, z } from "../server.js";
+import { protectedProcedure, publicProcedure, router, z } from "../server.js";
+import { createNotification } from "./notifications.js";
 
 const generateCode = () => Math.random().toString(36).substring(2, 8).toUpperCase();
 
@@ -129,5 +130,107 @@ export const groupsRouter = router({
         where: { id: input.id },
         data: { defaultSplit: splitMap },
       });
+    }),
+
+  findByCode: publicProcedure
+    .input(z.object({ code: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.group.findFirst({
+        where: { code: input.code, status: "ACTIVE" },
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          eventType: true,
+          _count: { select: { members: true } },
+        },
+      });
+    }),
+
+  join: protectedProcedure
+    .input(z.object({ code: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const group = await ctx.db.group.findFirst({
+        where: { code: input.code, status: "ACTIVE" },
+      });
+      if (!group) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const existing = await ctx.db.groupMember.findFirst({
+        where: { groupId: group.id, userId: ctx.session.userId, leftAt: null },
+      });
+      if (existing)
+        throw new TRPCError({ code: "CONFLICT", message: "Você já é membro deste grupo." });
+
+      return ctx.db.groupMember.create({
+        data: { groupId: group.id, userId: ctx.session.userId, role: "MEMBER" },
+      });
+    }),
+
+  inviteByUsername: protectedProcedure
+    .input(z.object({ groupId: z.string(), username: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const adminMember = await ctx.db.groupMember.findFirst({
+        where: { groupId: input.groupId, userId: ctx.session.userId, role: "ADMIN", leftAt: null },
+      });
+      if (!adminMember) throw new TRPCError({ code: "FORBIDDEN" });
+
+      const user = await ctx.db.user.findUnique({ where: { username: input.username } });
+      if (!user) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const existing = await ctx.db.groupMember.findFirst({
+        where: { groupId: input.groupId, userId: user.id, leftAt: null },
+      });
+      if (existing) throw new TRPCError({ code: "CONFLICT" });
+
+      const group = await ctx.db.group.findUnique({
+        where: { id: input.groupId },
+        select: { name: true },
+      });
+
+      const member = await ctx.db.groupMember.create({
+        data: { groupId: input.groupId, userId: user.id, role: "MEMBER" },
+      });
+
+      await createNotification(ctx.db, {
+        userId: user.id,
+        type: "GROUP_INVITE",
+        payload: { groupId: input.groupId, groupName: group?.name ?? "" },
+      });
+
+      return member;
+    }),
+
+  inviteByEmail: protectedProcedure
+    .input(z.object({ groupId: z.string(), email: z.string().email() }))
+    .mutation(async ({ ctx, input }) => {
+      const adminMember = await ctx.db.groupMember.findFirst({
+        where: { groupId: input.groupId, userId: ctx.session.userId, role: "ADMIN", leftAt: null },
+      });
+      if (!adminMember) throw new TRPCError({ code: "FORBIDDEN" });
+
+      const user = await ctx.db.user.findUnique({ where: { email: input.email } });
+      if (!user) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const existing = await ctx.db.groupMember.findFirst({
+        where: { groupId: input.groupId, userId: user.id, leftAt: null },
+      });
+      if (existing) throw new TRPCError({ code: "CONFLICT" });
+
+      const group = await ctx.db.group.findUnique({
+        where: { id: input.groupId },
+        select: { name: true },
+      });
+
+      const member = await ctx.db.groupMember.create({
+        data: { groupId: input.groupId, userId: user.id, role: "MEMBER" },
+      });
+
+      await createNotification(ctx.db, {
+        userId: user.id,
+        type: "GROUP_INVITE",
+        payload: { groupId: input.groupId, groupName: group?.name ?? "" },
+      });
+
+      return member;
     }),
 });

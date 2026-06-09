@@ -1,5 +1,6 @@
 import { accountsRouter } from "./routers/accounts.js";
 import { authRouter } from "./routers/auth.js";
+import { balancesRouter } from "./routers/balances.js";
 import { categoriesRouter } from "./routers/categories.js";
 import { groupsRouter } from "./routers/groups.js";
 import { notificationsRouter } from "./routers/notifications.js";
@@ -13,8 +14,10 @@ export const appRouter = router({
   transfers: transfersRouter,
   categories: categoriesRouter,
   notifications: notificationsRouter,
+  balances: balancesRouter,
 });
 
 export type AppRouter = typeof appRouter;
 
+export { performMonthClose } from "./routers/balances.js";
 export { type Context, protectedProcedure, publicProcedure, router } from "./server.js";
