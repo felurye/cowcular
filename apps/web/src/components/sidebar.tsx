@@ -108,6 +108,22 @@ export function Sidebar() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const { data: groups } = trpc.groups.list.useQuery();
+  const { data: transfers } = trpc.transfers.list.useQuery({}, { refetchInterval: 30_000 });
+
+  const pendingTransfers =
+    (
+      transfers as
+        | Array<{
+            status: string;
+            fromMember: { userId: string | null };
+            toMember: { userId: string | null };
+          }>
+        | undefined
+    )?.filter(
+      (t) =>
+        (t.fromMember.userId === user?.id && t.status === "PENDING") ||
+        (t.toMember.userId === user?.id && t.status === "AWAITING_CONFIRMATION"),
+    ).length ?? 0;
 
   const handleLogout = () => {
     logout();
@@ -157,7 +173,13 @@ export function Sidebar() {
       {/* Main nav */}
       <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
         <NavItem icon="◎" label="Dashboard" href="/dashboard" active={pathname === "/dashboard"} />
-        <NavItem icon="⇄" label="Repasses" href="/repasses" active={pathname === "/repasses"} />
+        <NavItem
+          icon="⇄"
+          label="Repasses"
+          href="/repasses"
+          active={pathname === "/repasses"}
+          badge={pendingTransfers}
+        />
         <NavItem
           icon="▤"
           label="Relatórios"
