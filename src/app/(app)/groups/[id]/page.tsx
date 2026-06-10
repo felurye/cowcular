@@ -485,7 +485,7 @@ function CreateAccountModal({
 
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
-  const [dueDate, setDueDate] = useState("");
+  const [dueDate, setDueDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [categoryId, setCategoryId] = useState("");
   const [type, setType] = useState<AccountType>("EXPENSE");
   const [recurrence, setRecurrence] = useState<Recurrence>("ONCE");
