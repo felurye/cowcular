@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server";
+import { generateCode } from "@/lib/group-utils";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getServerSupabase } from "@/lib/supabase-server";
-
-function generateCode(len = 6) {
-  return Math.random()
-    .toString(36)
-    .slice(2, 2 + len)
-    .toUpperCase();
-}
 
 export async function GET() {
   const supabase = await getServerSupabase();
