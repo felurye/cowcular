@@ -99,7 +99,7 @@ export default function RegisterPage() {
             width={40}
             height={40}
             alt="Cowcular"
-            style={{ objectFit: "contain" }}
+            style={{ objectFit: "contain", height: "auto" }}
           />
           <span
             style={{
@@ -175,7 +175,7 @@ export default function RegisterPage() {
             width={40}
             height={40}
             alt="Cowcular"
-            style={{ objectFit: "contain" }}
+            style={{ objectFit: "contain", height: "auto" }}
           />
           <span
             style={{

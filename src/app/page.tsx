@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 
@@ -31,7 +33,7 @@ export default function Home() {
           width={80}
           height={80}
           alt="Cowcular"
-          style={{ objectFit: "contain" }}
+          style={{ objectFit: "contain", height: "auto" }}
           priority
         />
         <h1

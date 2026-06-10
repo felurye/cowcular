@@ -29,7 +29,7 @@ export async function GET() {
   const groups = data
     .map((r) => r.group)
     .filter(Boolean)
-    .filter((g) => (g as { status: string }).status !== "CLOSED" || true);
+    .filter((g) => (g as unknown as { status: string }).status !== "CLOSED" || true);
 
   return NextResponse.json(groups);
 }

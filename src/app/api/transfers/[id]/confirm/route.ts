@@ -16,7 +16,8 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     .eq("id", id)
     .single();
 
-  const fromUserId = (transfer?.from_member as { user_id: string | null } | null)?.user_id;
+  const fromUserId = (transfer?.from_member as unknown as { user_id: string | null } | null)
+    ?.user_id;
 
   const { error } = await supabaseAdmin
     .from("transfers")

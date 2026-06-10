@@ -7,7 +7,8 @@ import {
 import { apiFetch, jsonPost } from "@/lib/api-fetch";
 
 export const transferKeys = {
-  all: (groupId?: string) => (groupId ? ["transfers", groupId] : ["transfers"]) as const,
+  all: (groupId?: string) =>
+    groupId ? (["transfers", groupId] as const) : (["transfers"] as const),
 };
 
 export function useTransferList(groupId?: string, opts?: { refetchInterval?: number }) {

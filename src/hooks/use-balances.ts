@@ -9,7 +9,7 @@ import { apiFetch, jsonPost } from "@/lib/api-fetch";
 export function useBalanceList(groupId: string) {
   return useQuery({
     queryKey: ["balances", groupId],
-    queryFn: () => apiFetch(`/api/balances?groupId=${groupId}`),
+    queryFn: () => apiFetch<unknown[]>(`/api/balances?groupId=${groupId}`),
     enabled: !!groupId,
   });
 }

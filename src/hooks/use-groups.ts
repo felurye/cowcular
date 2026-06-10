@@ -13,7 +13,7 @@ export const groupKeys = {
 };
 
 export function useGroupList() {
-  return useQuery({ queryKey: groupKeys.all, queryFn: () => apiFetch("/api/groups") });
+  return useQuery({ queryKey: groupKeys.all, queryFn: () => apiFetch<unknown[]>("/api/groups") });
 }
 
 export function useGroup(id: string) {
