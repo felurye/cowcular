@@ -10,7 +10,12 @@ import {
   useMarkAccountPaid,
   useUpdateAccount,
 } from "@/hooks/use-accounts";
-import { useBalanceList, useCloseBalance } from "@/hooks/use-balances";
+import {
+  type BalancePreview,
+  useBalanceList,
+  useBalancePreview,
+  useCloseBalance,
+} from "@/hooks/use-balances";
 import { useCategoryList } from "@/hooks/use-categories";
 import {
   useAddExternalMember,
@@ -2125,6 +2130,220 @@ function MembersTab({
   );
 }
 
+// ─── PreviewTab ───────────────────────────────────────────────────────────────
+
+function PreviewTab({ group }: { group: Group }) {
+  const now = new Date();
+  const isEvent = group.type === "EVENT";
+  const [previewMonth, setPreviewMonth] = useState(now.getMonth() + 1);
+  const [previewYear, setPreviewYear] = useState(now.getFullYear());
+
+  const { data, isLoading } = useBalancePreview(
+    group.id,
+    isEvent ? undefined : previewMonth,
+    isEvent ? undefined : previewYear,
+  );
+
+  const preview = data as BalancePreview | undefined;
+
+  if (isLoading) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {[1, 2, 3].map((i) => (
+          <div key={i} style={{ height: 52, background: "var(--surface-2)", borderRadius: 12 }} />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {!isEvent && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+            marginBottom: 20,
+          }}
+        >
+          <span style={{ fontSize: 13.5, fontWeight: 650, color: "var(--ink-soft)" }}>
+            Período:
+          </span>
+          <select
+            style={{ ...selectStyle, width: "auto", fontSize: 13, padding: "6px 12px" }}
+            value={previewMonth}
+            onChange={(e) => setPreviewMonth(Number(e.target.value))}
+          >
+            {MONTH_NAMES.map((m, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: month index is stable and meaningful
+              <option key={i} value={i + 1}>
+                {m}
+              </option>
+            ))}
+          </select>
+          <input
+            style={{ ...inputStyle, width: 90, fontSize: 13, padding: "6px 12px" }}
+            type="number"
+            value={previewYear}
+            onChange={(e) => setPreviewYear(Number(e.target.value))}
+            min={2020}
+          />
+        </div>
+      )}
+
+      {preview && (
+        <>
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              marginBottom: 20,
+              flexWrap: "wrap",
+            }}
+          >
+            <div
+              style={{
+                flex: 1,
+                minWidth: 130,
+                background: "var(--surface)",
+                border: "1px solid var(--line)",
+                borderRadius: 13,
+                padding: "14px 16px",
+              }}
+            >
+              <div style={{ fontSize: 12, color: "var(--ink-faint)", marginBottom: 4 }}>
+                Despesas
+              </div>
+              <div style={{ fontWeight: 700, fontSize: 17, color: "var(--coral)" }}>
+                {fmtAmount(preview.totalExpense)}
+              </div>
+            </div>
+            <div
+              style={{
+                flex: 1,
+                minWidth: 130,
+                background: "var(--surface)",
+                border: "1px solid var(--line)",
+                borderRadius: 13,
+                padding: "14px 16px",
+              }}
+            >
+              <div style={{ fontSize: 12, color: "var(--ink-faint)", marginBottom: 4 }}>
+                Receitas
+              </div>
+              <div style={{ fontWeight: 700, fontSize: 17, color: "var(--teal)" }}>
+                {fmtAmount(preview.totalIncome)}
+              </div>
+            </div>
+          </div>
+
+          {preview.netTransfers.length === 0 ? (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "40px 20px",
+                color: "var(--ink-faint)",
+                background: "var(--surface)",
+                border: "1px solid var(--line)",
+                borderRadius: 14,
+              }}
+            >
+              <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
+              <p style={{ margin: 0, fontSize: 14 }}>Nenhum repasse necessário neste período.</p>
+            </div>
+          ) : (
+            <div>
+              <div
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 650,
+                  color: "var(--ink-faint)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  marginBottom: 10,
+                }}
+              >
+                Repasses sugeridos (valores líquidos)
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {preview.netTransfers.map((t) => (
+                  <div
+                    key={`${t.fromMemberId}-${t.toMemberId}`}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "14px 16px",
+                      background: "var(--surface)",
+                      border: "1px solid var(--line)",
+                      borderRadius: 13,
+                    }}
+                  >
+                    <div style={{ fontSize: 14, color: "var(--ink)" }}>
+                      <span style={{ fontWeight: 650 }}>{t.fromName}</span>
+                      <span style={{ color: "var(--ink-faint)", margin: "0 8px" }}>→</span>
+                      <span style={{ fontWeight: 650 }}>{t.toName}</span>
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: "var(--ink)" }}>
+                      {fmtAmount(t.amount)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {preview.byMember.length > 0 && (
+            <div style={{ marginTop: 24 }}>
+              <div
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 650,
+                  color: "var(--ink-faint)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  marginBottom: 10,
+                }}
+              >
+                Saldo por membro
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {preview.byMember.map((m) => (
+                  <div
+                    key={m.memberId}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "12px 16px",
+                      background: "var(--surface-alt)",
+                      borderRadius: 11,
+                    }}
+                  >
+                    <span style={{ fontSize: 13.5, color: "var(--ink)" }}>{m.name}</span>
+                    <span
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: m.balance >= 0 ? "var(--teal-deep)" : "var(--coral)",
+                      }}
+                    >
+                      {m.balance >= 0 ? "+" : ""}
+                      {fmtAmount(m.balance)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── BalanceTab ───────────────────────────────────────────────────────────────
 
 function BalanceTab({ group, isAdmin }: { group: Group; isAdmin: boolean }) {
@@ -2271,7 +2490,7 @@ function BalanceTab({ group, isAdmin }: { group: Group; isAdmin: boolean }) {
 
 // ─── GroupPage ────────────────────────────────────────────────────────────────
 
-type Tab = "accounts" | "transfers" | "members" | "balance";
+type Tab = "accounts" | "transfers" | "members" | "balance" | "resumo";
 
 export default function GroupPage() {
   const params = useParams<{ id: string }>();
@@ -2346,6 +2565,7 @@ export default function GroupPage() {
     { id: "transfers", label: "Repasses" },
     { id: "members", label: memberTabLabel },
     ...(g.type === "HOME" ? [{ id: "balance" as Tab, label: "Balanço" }] : []),
+    { id: "resumo", label: "Resumo" },
   ];
 
   const copyCode = async () => {
@@ -2553,6 +2773,7 @@ export default function GroupPage() {
         {activeTab === "transfers" && <TransfersTab group={g} userId={user?.id} />}
         {activeTab === "members" && <MembersTab group={g} isAdmin={isAdmin} userId={user?.id} />}
         {activeTab === "balance" && g.type === "HOME" && <BalanceTab group={g} isAdmin={isAdmin} />}
+        {activeTab === "resumo" && <PreviewTab group={g} />}
       </div>
     </>
   );
