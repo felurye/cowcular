@@ -15,6 +15,7 @@ export async function GET(request: Request) {
   let query = supabaseAdmin
     .from("categories")
     .select("id, name, icon, color, is_system")
+    .is("deleted_at", null)
     .order("name");
 
   if (groupId) {

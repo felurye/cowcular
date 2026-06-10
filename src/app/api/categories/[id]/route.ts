@@ -32,7 +32,10 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   if (!member) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
 
-  const { error } = await supabaseAdmin.from("categories").delete().eq("id", id);
+  const { error } = await supabaseAdmin
+    .from("categories")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
