@@ -20,6 +20,7 @@ export async function GET(request: Request) {
     .from("accounts")
     .select(
       `id, amount, type, status,
+       category:categories(id, name, icon),
        paid_by:group_members!paid_by_member_id(id, user_id, external_name, user:profiles(id, name)),
        splits:account_splits(member_id, amount_due,
          member:group_members(id, user_id, external_name, user:profiles(id, name)))`,
@@ -47,10 +48,16 @@ export async function GET(request: Request) {
     user: { id: string; name: string } | null;
   };
 
+  type CategoryRef = { id: string; name: string; icon: string | null } | null;
+
   const getName = (m: MemberRef) => m.user?.name ?? m.external_name ?? "Externo";
 
   // Balance per member: credit (paid) - debit (owes)
   const balanceMap = new Map<string, { member: MemberRef; balance: number }>();
+  const categoryMap = new Map<
+    string,
+    { id: string; name: string; icon: string | null; total: number }
+  >();
 
   const ensure = (m: MemberRef) => {
     if (!balanceMap.has(m.id)) balanceMap.set(m.id, { member: m, balance: 0 });
@@ -68,6 +75,15 @@ export async function GET(request: Request) {
       totalIncome += amount;
     } else {
       totalExpense += amount;
+      const cat = acc.category as unknown as CategoryRef;
+      if (cat?.id) {
+        const existing = categoryMap.get(cat.id);
+        if (existing) {
+          existing.total += amount;
+        } else {
+          categoryMap.set(cat.id, { id: cat.id, name: cat.name, icon: cat.icon, total: amount });
+        }
+      }
     }
 
     ensure(paidBy);
@@ -139,10 +155,20 @@ export async function GET(request: Request) {
     balance: Math.round(e.balance * 100) / 100,
   }));
 
+  const byCategory = Array.from(categoryMap.values())
+    .map((c) => ({
+      categoryId: c.id,
+      categoryName: c.name,
+      categoryIcon: c.icon,
+      totalExpense: Math.round(c.total * 100) / 100,
+    }))
+    .sort((a, b) => b.totalExpense - a.totalExpense);
+
   return NextResponse.json({
     totalExpense: Math.round(totalExpense * 100) / 100,
     totalIncome: Math.round(totalIncome * 100) / 100,
     byMember,
+    byCategory,
     netTransfers,
   });
 }

@@ -15,6 +15,12 @@ export type BalancePreview = {
     userId: string | null;
     balance: number;
   }[];
+  byCategory: {
+    categoryId: string;
+    categoryName: string;
+    categoryIcon: string | null;
+    totalExpense: number;
+  }[];
   netTransfers: {
     fromMemberId: string;
     fromName: string;
