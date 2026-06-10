@@ -105,7 +105,7 @@ export default function NotificationsPage() {
           display: "flex",
           alignItems: "center",
           gap: 16,
-          padding: "20px 32px 18px",
+          padding: "20px var(--gutter) 18px",
           position: "sticky",
           top: 0,
           zIndex: 20,
@@ -170,7 +170,7 @@ export default function NotificationsPage() {
         )}
       </div>
 
-      <div style={{ padding: "16px 32px 60px" }}>
+      <div style={{ padding: "16px var(--gutter) calc(60px + var(--bottom-nav-h))" }}>
         {isLoading ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
             {[1, 2, 3, 4].map((i) => (
@@ -189,7 +189,7 @@ export default function NotificationsPage() {
           <div
             style={{
               textAlign: "center",
-              padding: "80px 32px",
+              padding: "80px var(--gutter)",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",

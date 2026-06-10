@@ -703,7 +703,7 @@ function DashboardContent() {
           display: "flex",
           alignItems: "center",
           gap: 16,
-          padding: "20px 32px 18px",
+          padding: "20px var(--gutter) 18px",
           position: "sticky",
           top: 0,
           zIndex: 20,
@@ -753,7 +753,14 @@ function DashboardContent() {
         </button>
       </div>
 
-      <div style={{ padding: "24px 32px 60px", display: "flex", flexDirection: "column", gap: 32 }}>
+      <div
+        style={{
+          padding: "24px var(--gutter) calc(60px + var(--bottom-nav-h))",
+          display: "flex",
+          flexDirection: "column",
+          gap: 32,
+        }}
+      >
         <div style={{ display: "flex", gap: 14 }}>
           <StatCard
             label="Repasses a pagar"
@@ -894,7 +901,7 @@ function DashboardContent() {
             <div
               style={{
                 textAlign: "center",
-                padding: "60px 32px",
+                padding: "60px var(--gutter)",
                 color: "var(--ink-faint)",
                 display: "flex",
                 flexDirection: "column",

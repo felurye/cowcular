@@ -108,7 +108,7 @@ export default function RepassesPage() {
           display: "flex",
           alignItems: "center",
           gap: 16,
-          padding: "20px 32px 18px",
+          padding: "20px var(--gutter) 18px",
           position: "sticky",
           top: 0,
           zIndex: 20,
@@ -156,7 +156,7 @@ export default function RepassesPage() {
         </div>
       </div>
 
-      <div style={{ padding: "24px 32px 60px" }}>
+      <div style={{ padding: "24px var(--gutter) calc(60px + var(--bottom-nav-h))" }}>
         <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
           <div
             style={{
@@ -248,7 +248,7 @@ export default function RepassesPage() {
           <div
             style={{
               textAlign: "center",
-              padding: "80px 32px",
+              padding: "80px var(--gutter)",
               color: "var(--ink-faint)",
               display: "flex",
               flexDirection: "column",

@@ -222,7 +222,7 @@ export default function ReportsPage() {
           display: "flex",
           alignItems: "center",
           gap: 16,
-          padding: "20px 32px 18px",
+          padding: "20px var(--gutter) 18px",
           position: "sticky",
           top: 0,
           zIndex: 20,
@@ -250,7 +250,14 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      <div style={{ padding: "24px 32px 60px", display: "flex", flexDirection: "column", gap: 28 }}>
+      <div
+        style={{
+          padding: "24px var(--gutter) calc(60px + var(--bottom-nav-h))",
+          display: "flex",
+          flexDirection: "column",
+          gap: 28,
+        }}
+      >
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <select
             value={selectedGroupId}
@@ -316,12 +323,24 @@ export default function ReportsPage() {
         </div>
 
         {!selectedGroupId ? (
-          <div style={{ textAlign: "center", padding: "80px 32px", color: "var(--ink-faint)" }}>
+          <div
+            style={{
+              textAlign: "center",
+              padding: "80px var(--gutter)",
+              color: "var(--ink-faint)",
+            }}
+          >
             Selecione um grupo para ver os relatórios.
           </div>
         ) : (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                gap: 20,
+              }}
+            >
               <div
                 style={{
                   background: "var(--surface)",

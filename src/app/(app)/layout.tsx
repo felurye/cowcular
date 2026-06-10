@@ -1,4 +1,4 @@
-import { Sidebar } from "@/components/sidebar";
+import { BottomNav, Sidebar } from "@/components/sidebar";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -17,6 +17,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       >
         {children}
       </div>
+      <BottomNav />
     </div>
   );
 }

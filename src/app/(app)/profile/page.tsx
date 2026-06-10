@@ -132,7 +132,7 @@ export default function ProfilePage() {
           display: "flex",
           alignItems: "center",
           gap: 16,
-          padding: "20px 32px 18px",
+          padding: "20px var(--gutter) 18px",
           position: "sticky",
           top: 0,
           zIndex: 20,
@@ -160,7 +160,14 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div style={{ padding: "28px 32px 60px", display: "flex", flexDirection: "column", gap: 24 }}>
+      <div
+        style={{
+          padding: "28px var(--gutter) calc(60px + var(--bottom-nav-h))",
+          display: "flex",
+          flexDirection: "column",
+          gap: 24,
+        }}
+      >
         <section style={sectionStyle}>
           <h2
             style={{

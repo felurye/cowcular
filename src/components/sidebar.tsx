@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useGroupList } from "@/hooks/use-groups";
 import { useNotificationList } from "@/hooks/use-notifications";
 import { useTransferList } from "@/hooks/use-transfers";
@@ -25,6 +26,7 @@ function NavItem({
   active,
   badge,
   sub,
+  onClick,
 }: {
   icon: string;
   label: string;
@@ -32,10 +34,12 @@ function NavItem({
   active: boolean;
   badge?: number;
   sub?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <Link
       href={href}
+      onClick={onClick}
       style={{
         display: "flex",
         alignItems: "center",
@@ -67,6 +71,69 @@ function NavItem({
             display: "grid",
             placeItems: "center",
             padding: "0 5px",
+          }}
+        >
+          {badge}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+function BottomNavItem({
+  icon,
+  label,
+  href,
+  active,
+  badge,
+}: {
+  icon: string;
+  label: string;
+  href: string;
+  active: boolean;
+  badge?: number;
+}) {
+  return (
+    <Link
+      href={href}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 3,
+        flex: 1,
+        padding: "8px 4px",
+        color: active ? "var(--amber-deep)" : "var(--ink-faint)",
+        textDecoration: "none",
+        position: "relative",
+      }}
+    >
+      <span style={{ fontSize: 21 }}>{icon}</span>
+      <span
+        style={{
+          fontSize: 10.5,
+          fontWeight: active ? 700 : 500,
+          lineHeight: 1,
+        }}
+      >
+        {label}
+      </span>
+      {badge != null && badge > 0 && (
+        <span
+          style={{
+            position: "absolute",
+            top: 4,
+            right: "calc(50% - 18px)",
+            background: "var(--coral)",
+            color: "#fff",
+            fontSize: 10,
+            fontWeight: 700,
+            minWidth: 16,
+            height: 16,
+            borderRadius: 8,
+            display: "grid",
+            placeItems: "center",
+            padding: "0 4px",
           }}
         >
           {badge}
@@ -112,15 +179,10 @@ type SidebarGroup = {
   event_type: string | null;
 };
 
-export function Sidebar() {
-  const pathname = usePathname();
-  const router = useRouter();
+function useSidebarData() {
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
-
   const { data: rawGroups } = useGroupList();
   const groups = rawGroups as SidebarGroup[] | undefined;
-
   const { data: transfers } = useTransferList(undefined, { refetchInterval: 30_000 });
   const { data: notifications } = useNotificationList({ refetchInterval: 30_000 });
 
@@ -142,6 +204,15 @@ export function Sidebar() {
   const unreadNotifications =
     (notifications as Array<{ read: boolean }> | undefined)?.filter((n) => !n.read).length ?? 0;
 
+  return { user, groups, pendingTransfers, unreadNotifications };
+}
+
+export function Sidebar() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const logout = useAuthStore((s) => s.logout);
+  const { user, groups, pendingTransfers, unreadNotifications } = useSidebarData();
+
   const handleLogout = async () => {
     logout();
     await getSupabase().auth.signOut();
@@ -150,6 +221,7 @@ export function Sidebar() {
 
   return (
     <aside
+      className="sidebar"
       style={{
         width: 260,
         flexShrink: 0,
@@ -158,8 +230,6 @@ export function Sidebar() {
         height: "100vh",
         position: "sticky",
         top: 0,
-        display: "flex",
-        flexDirection: "column",
         padding: "20px 14px",
         gap: 0,
       }}
@@ -299,5 +369,176 @@ export function Sidebar() {
         </button>
       </div>
     </aside>
+  );
+}
+
+export function BottomNav() {
+  const pathname = usePathname();
+  const { groups, pendingTransfers, unreadNotifications } = useSidebarData();
+  const [showGroups, setShowGroups] = useState(false);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fechar drawer ao navegar para outra rota
+  useEffect(() => {
+    setShowGroups(false);
+  }, [pathname]);
+
+  const isGroupsActive = pathname.startsWith("/groups/");
+
+  return (
+    <>
+      {showGroups && (
+        // biome-ignore lint/a11y/noStaticElementInteractions: backdrop closes drawer on click
+        // biome-ignore lint/a11y/useKeyWithClickEvents: handled by Escape-equivalent (tap outside)
+        <div
+          onClick={() => setShowGroups(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 40,
+            background: "rgba(42,36,27,.45)",
+            backdropFilter: "blur(2px)",
+          }}
+        >
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: stop propagation */}
+          {/* biome-ignore lint/a11y/useKeyWithClickEvents: handled by tap outside */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: "absolute",
+              bottom: 68,
+              left: 0,
+              right: 0,
+              background: "var(--surface-alt)",
+              borderRadius: "20px 20px 0 0",
+              borderTop: "1px solid var(--line)",
+              padding: "16px 14px 8px",
+              maxHeight: "60vh",
+              overflowY: "auto",
+              display: "flex",
+              flexDirection: "column",
+              gap: 3,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11.5,
+                fontWeight: 750,
+                letterSpacing: ".08em",
+                color: "var(--ink-faint)",
+                textTransform: "uppercase",
+                padding: "0 8px 10px",
+              }}
+            >
+              Meus grupos
+            </div>
+            {groups?.map((g) => {
+              const icon =
+                g.type === "HOME"
+                  ? GROUP_EMOJI.HOME
+                  : (GROUP_EMOJI[g.event_type ?? "GENERAL"] ?? "📋");
+              const href = `/groups/${g.id}`;
+              return (
+                <NavItem
+                  key={g.id}
+                  sub
+                  icon={icon}
+                  label={g.name}
+                  href={href}
+                  active={pathname === href}
+                  onClick={() => setShowGroups(false)}
+                />
+              );
+            })}
+            <Link
+              href="/dashboard?new=1"
+              onClick={() => setShowGroups(false)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 11,
+                border: "1.5px dashed var(--line-strong)",
+                background: "transparent",
+                color: "var(--ink-faint)",
+                marginTop: 4,
+                padding: "9px 12px",
+                borderRadius: 11,
+                fontSize: 13.5,
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+            >
+              <span style={{ fontSize: 16, width: 20, textAlign: "center" }}>＋</span> Novo grupo
+            </Link>
+          </div>
+        </div>
+      )}
+
+      <nav
+        className="bottom-nav"
+        style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 68,
+          background: "var(--surface-alt)",
+          borderTop: "1px solid var(--line)",
+          zIndex: 30,
+          justifyContent: "space-around",
+          alignItems: "center",
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        }}
+      >
+        <BottomNavItem
+          icon="◎"
+          label="Dashboard"
+          href="/dashboard"
+          active={pathname === "/dashboard"}
+        />
+        <BottomNavItem
+          icon="⇄"
+          label="Repasses"
+          href="/repasses"
+          active={pathname === "/repasses"}
+          badge={pendingTransfers}
+        />
+        <button
+          type="button"
+          onClick={() => setShowGroups((v) => !v)}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 3,
+            flex: 1,
+            padding: "8px 4px",
+            color: isGroupsActive || showGroups ? "var(--amber-deep)" : "var(--ink-faint)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            fontFamily: "var(--font-body)",
+          }}
+        >
+          <span style={{ fontSize: 21 }}>👥</span>
+          <span
+            style={{
+              fontSize: 10.5,
+              fontWeight: isGroupsActive || showGroups ? 700 : 500,
+              lineHeight: 1,
+            }}
+          >
+            Grupos
+          </span>
+        </button>
+        <BottomNavItem
+          icon="🔔"
+          label="Avisos"
+          href="/notifications"
+          active={pathname === "/notifications"}
+          badge={unreadNotifications}
+        />
+        <BottomNavItem icon="👤" label="Perfil" href="/profile" active={pathname === "/profile"} />
+      </nav>
+    </>
   );
 }

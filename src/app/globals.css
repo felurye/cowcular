@@ -85,6 +85,46 @@ img[data-nimg="1"] {
   background: rgba(232, 162, 61, 0.3);
 }
 
+/* ─── Responsive layout ──────────────────────────────────────────────────── */
+
+:root {
+  --gutter: 32px;
+  --bottom-nav-h: 0px;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+}
+
+.bottom-nav {
+  display: none;
+}
+
+.tabs-scroll {
+  scrollbar-width: none;
+}
+.tabs-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --gutter: 16px;
+    --bottom-nav-h: 68px;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .bottom-nav {
+    display: flex;
+  }
+}
+
+/* ─── Scrollbar ───────────────────────────────────────────────────────────── */
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 11px;

@@ -3295,7 +3295,7 @@ export default function GroupPage() {
           display: "flex",
           alignItems: "center",
           gap: 14,
-          padding: "18px 32px 16px",
+          padding: "18px var(--gutter) 16px",
           position: "sticky",
           top: 0,
           zIndex: 20,
@@ -3417,12 +3417,14 @@ export default function GroupPage() {
       )}
 
       <div
+        className="tabs-scroll"
         style={{
           display: "flex",
           gap: 2,
-          padding: "0 32px",
+          padding: "0 var(--gutter)",
           borderBottom: "1px solid var(--line)",
           background: "var(--surface-alt)",
+          overflowX: "auto",
         }}
       >
         {tabs.map((tab) => (
@@ -3449,7 +3451,7 @@ export default function GroupPage() {
         ))}
       </div>
 
-      <div style={{ padding: "24px 32px 60px" }}>
+      <div style={{ padding: "24px var(--gutter) calc(60px + var(--bottom-nav-h))" }}>
         {activeTab === "accounts" && <AccountsTab group={g} isReadOnly={isReadOnly} />}
         {activeTab === "transfers" && <TransfersTab group={g} userId={user?.id} />}
         {activeTab === "members" && <MembersTab group={g} isAdmin={isAdmin} userId={user?.id} />}
