@@ -8,6 +8,7 @@ import {
   useDeferAccount,
   useDeleteAccount,
   useMarkAccountPaid,
+  useUpdateAccount,
 } from "@/hooks/use-accounts";
 import { useBalanceList, useCloseBalance } from "@/hooks/use-balances";
 import { useCategoryList } from "@/hooks/use-categories";
@@ -689,6 +690,389 @@ function CreateAccountModal({
   );
 }
 
+// ─── EditAccountModal ─────────────────────────────────────────────────────────
+
+const RECURRENCE_LABEL: Record<Recurrence, string> = {
+  ONCE: "Única",
+  RECURRING: "Recorrente",
+  INSTALLMENT: "Parcelada",
+};
+
+function EditAccountModal({
+  account,
+  group,
+  onClose,
+  onSuccess,
+}: {
+  account: Account;
+  group: Group;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const activeMembers = group.members.filter((m) => !m.left_at);
+
+  const getEditSplits = () => {
+    if (account.splits.length > 0) {
+      const existing = Object.fromEntries(account.splits.map((s) => [s.member_id, s.percentage]));
+      return activeMembers.map((m) => ({
+        memberId: m.id,
+        percentage: existing[m.id] ?? 0,
+      }));
+    }
+    const eq = Math.round((100 / activeMembers.length) * 100) / 100;
+    return activeMembers.map((m, i) => ({
+      memberId: m.id,
+      percentage: i === 0 ? 100 - eq * (activeMembers.length - 1) : eq,
+    }));
+  };
+
+  const [title, setTitle] = useState(account.title);
+  const [amount, setAmount] = useState(String(account.amount));
+  const [dueDate, setDueDate] = useState(() =>
+    account.due_date ? account.due_date.split("T")[0] : "",
+  );
+  const [categoryId, setCategoryId] = useState(account.category?.id ?? "");
+  const [type, setType] = useState<AccountType>(account.type);
+  const [paidByMemberId, setPaidByMemberId] = useState(account.paid_by?.id ?? "");
+  const [useSplits, setUseSplits] = useState(account.splits.length > 0);
+  const [splits, setSplits] = useState(getEditSplits);
+  const [replicateToFuture, setReplicateToFuture] = useState(false);
+  const [error, setError] = useState("");
+
+  const { data: categories } = useCategoryList();
+
+  const updateMutation = useUpdateAccount({
+    onSuccess: () => onSuccess(),
+    onError: (err) => setError(err.message),
+  });
+
+  const splitTotal = splits.reduce((s, x) => s + (Number(x.percentage) || 0), 0);
+
+  const handleSplitChange = (memberId: string, pct: string) => {
+    setSplits((prev) =>
+      prev.map((s) => (s.memberId === memberId ? { ...s, percentage: Number(pct) || 0 } : s)),
+    );
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (!paidByMemberId) return setError("Selecione quem pagou.");
+    if (useSplits && Math.abs(splitTotal - 100) > 0.1)
+      return setError("A divisão deve somar 100%.");
+
+    updateMutation.mutate({
+      id: account.id,
+      data: {
+        title,
+        amount: Number(amount),
+        dueDate: dueDate || null,
+        categoryId: categoryId || null,
+        type,
+        paidByMemberId,
+        splits: useSplits
+          ? splits.map((s) => ({ memberId: s.memberId, percentage: Number(s.percentage) }))
+          : [],
+        replicateToFuture: account.recurrence === "RECURRING" ? replicateToFuture : false,
+      },
+    });
+  };
+
+  return (
+    <ModalBackdrop onClose={onClose}>
+      <ModalCard title="Editar conta" onClose={onClose} maxWidth={500}>
+        {error && <ErrorBanner msg={error} />}
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div
+            style={{
+              display: "flex",
+              background: "var(--surface-2)",
+              borderRadius: 11,
+              padding: 3,
+              gap: 2,
+            }}
+          >
+            {(["EXPENSE", "INCOME"] as AccountType[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setType(t)}
+                style={{
+                  flex: 1,
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "8px 12px",
+                  fontSize: 13.5,
+                  fontWeight: 650,
+                  fontFamily: "var(--font-body)",
+                  cursor: "pointer",
+                  background: type === t ? "var(--surface)" : "transparent",
+                  color: type === t ? "var(--ink)" : "var(--ink-soft)",
+                  boxShadow: type === t ? "0 1px 3px rgba(40,30,10,.12)" : "none",
+                }}
+              >
+                {t === "EXPENSE" ? "💸 Despesa" : "💰 Receita"}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display: "flex", gap: 12 }}>
+            <div style={{ flex: 2, display: "flex", flexDirection: "column", gap: 5 }}>
+              <label htmlFor="ed-title" style={labelStyle}>
+                Título
+              </label>
+              <input
+                id="ed-title"
+                style={inputStyle}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+              />
+            </div>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
+              <label htmlFor="ed-amount" style={labelStyle}>
+                Valor (R$)
+              </label>
+              <input
+                id="ed-amount"
+                style={inputStyle}
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 12 }}>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
+              <label htmlFor="ed-due" style={labelStyle}>
+                Vencimento
+              </label>
+              <input
+                id="ed-due"
+                style={inputStyle}
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
+            </div>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
+              <label htmlFor="ed-cat" style={labelStyle}>
+                Categoria
+              </label>
+              <select
+                id="ed-cat"
+                style={selectStyle}
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+              >
+                <option value="">Sem categoria</option>
+                {(categories as Category[] | undefined)?.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.icon ? `${c.icon} ` : ""}
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={labelStyle}>Recorrência:</span>
+            <span
+              style={{
+                fontSize: 12.5,
+                fontWeight: 650,
+                padding: "3px 9px",
+                borderRadius: 8,
+                background: "var(--surface-2)",
+                color: "var(--ink-soft)",
+              }}
+            >
+              {RECURRENCE_LABEL[account.recurrence]}
+            </span>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            <label htmlFor="ed-paid-by" style={labelStyle}>
+              Quem pagou
+            </label>
+            <select
+              id="ed-paid-by"
+              style={selectStyle}
+              value={paidByMemberId}
+              onChange={(e) => setPaidByMemberId(e.target.value)}
+              required
+            >
+              {activeMembers.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {memberName(m)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {activeMembers.length > 1 && (
+            <div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 8,
+                }}
+              >
+                <span style={labelStyle}>Divisão entre membros</span>
+                <button
+                  type="button"
+                  onClick={() => setUseSplits((v) => !v)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: 12.5,
+                    color: "var(--amber-deep)",
+                    fontWeight: 650,
+                    fontFamily: "var(--font-body)",
+                  }}
+                >
+                  {useSplits ? "Remover divisão" : "Adicionar divisão"}
+                </button>
+              </div>
+              {useSplits && (
+                <div
+                  style={{
+                    background: "var(--surface-alt)",
+                    borderRadius: 12,
+                    padding: 14,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                  }}
+                >
+                  {splits.map((s) => {
+                    const m = activeMembers.find((mb) => mb.id === s.memberId);
+                    return (
+                      <div
+                        key={s.memberId}
+                        style={{ display: "flex", alignItems: "center", gap: 10 }}
+                      >
+                        <span style={{ flex: 1, fontSize: 13.5, color: "var(--ink)" }}>
+                          {memberName(m ?? null)}
+                        </span>
+                        <input
+                          style={{ ...inputStyle, width: 80, textAlign: "right" }}
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="100"
+                          value={s.percentage}
+                          onChange={(e) => handleSplitChange(s.memberId, e.target.value)}
+                        />
+                        <span style={{ fontSize: 13, color: "var(--ink-soft)", width: 14 }}>%</span>
+                      </div>
+                    );
+                  })}
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "flex-end",
+                      alignItems: "center",
+                      gap: 6,
+                      paddingTop: 4,
+                      borderTop: "1px solid var(--line)",
+                      marginTop: 4,
+                    }}
+                  >
+                    <span style={{ fontSize: 12.5, color: "var(--ink-faint)" }}>Total:</span>
+                    <span
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color:
+                          Math.abs(splitTotal - 100) < 0.1 ? "var(--teal-deep)" : "var(--coral)",
+                      }}
+                    >
+                      {splitTotal.toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {account.recurrence === "RECURRING" && (
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "12px 14px",
+                background: "rgba(232,162,61,.08)",
+                border: "1px solid rgba(232,162,61,.25)",
+                borderRadius: 11,
+                cursor: "pointer",
+                fontSize: 13.5,
+                color: "var(--ink-soft)",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={replicateToFuture}
+                onChange={(e) => setReplicateToFuture(e.target.checked)}
+                style={{ width: 16, height: 16, cursor: "pointer", accentColor: "var(--amber)" }}
+              />
+              Replicar alterações para os meses seguintes
+            </label>
+          )}
+
+          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                flex: 1,
+                background: "transparent",
+                border: "1.5px solid var(--line-strong)",
+                color: "var(--ink)",
+                fontFamily: "var(--font-body)",
+                fontWeight: 650,
+                fontSize: 14,
+                borderRadius: 11,
+                padding: "10px 16px",
+                cursor: "pointer",
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={updateMutation.isPending}
+              style={{
+                flex: 1,
+                background: updateMutation.isPending ? "var(--amber-soft)" : "var(--amber)",
+                color: "#3a2a08",
+                fontFamily: "var(--font-body)",
+                fontWeight: 680,
+                fontSize: 14,
+                border: "none",
+                borderRadius: 11,
+                padding: "10px 16px",
+                cursor: updateMutation.isPending ? "not-allowed" : "pointer",
+              }}
+            >
+              {updateMutation.isPending ? "Salvando..." : "Salvar alterações"}
+            </button>
+          </div>
+        </form>
+      </ModalCard>
+    </ModalBackdrop>
+  );
+}
+
 // ─── AccountDetailModal ───────────────────────────────────────────────────────
 
 function AccountDetailModal({
@@ -704,6 +1088,17 @@ function AccountDetailModal({
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState("");
+  const [showEdit, setShowEdit] = useState(false);
+
+  const isMonthOpen = (() => {
+    if (!account.due_date) return true;
+    const d = new Date(account.due_date);
+    const balance = group.balances.find(
+      (b) => b.month === d.getMonth() + 1 && b.year === d.getFullYear(),
+    );
+    return !balance || balance.status === "OPEN";
+  })();
+  const canEdit = account.status === "OPEN" && isMonthOpen && group.status !== "CLOSED";
 
   const markPaidMutation = useMarkAccountPaid({
     onSuccess: () => {
@@ -745,6 +1140,20 @@ function AccountDetailModal({
   };
 
   const statusCfg = STATUS_CONFIG[account.status];
+
+  if (showEdit) {
+    return (
+      <EditAccountModal
+        account={account}
+        group={group}
+        onClose={() => setShowEdit(false)}
+        onSuccess={() => {
+          onMutate();
+          onClose();
+        }}
+      />
+    );
+  }
 
   return (
     <ModalBackdrop onClose={onClose}>
@@ -852,6 +1261,25 @@ function AccountDetailModal({
           )}
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => setShowEdit(true)}
+                style={{
+                  background: "rgba(232,162,61,.12)",
+                  color: "var(--amber-deep)",
+                  border: "none",
+                  borderRadius: 9,
+                  padding: "8px 14px",
+                  fontSize: 13.5,
+                  fontWeight: 650,
+                  cursor: "pointer",
+                  fontFamily: "var(--font-body)",
+                }}
+              >
+                Editar
+              </button>
+            )}
             {account.status === "OPEN" && (
               <button
                 type="button"
