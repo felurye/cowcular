@@ -85,3 +85,26 @@ export function useDeferAccount(
     onError: opts?.onError,
   });
 }
+
+export function useUpdateAccount(
+  opts?: Pick<
+    UseMutationOptions<unknown, Error, { id: string; data: unknown }>,
+    "onSuccess" | "onError"
+  >,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) =>
+      apiFetch(`/api/accounts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }),
+    onSuccess: async (...args) => {
+      await qc.invalidateQueries({ queryKey: ["accounts"] });
+      await qc.invalidateQueries({ queryKey: ["transfers"] });
+      opts?.onSuccess?.(...args);
+    },
+    onError: opts?.onError,
+  });
+}
