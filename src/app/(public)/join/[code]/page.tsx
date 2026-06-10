@@ -122,7 +122,7 @@ export default function JoinPage() {
             width={30}
             height={30}
             alt="Cowcular"
-            style={{ objectFit: "contain", height: "auto" }}
+            style={{ objectFit: "contain" }}
           />
           <span
             style={{

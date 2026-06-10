@@ -103,7 +103,7 @@ export default function LoginPage() {
             width={40}
             height={40}
             alt="Cowcular"
-            style={{ objectFit: "contain", height: "auto" }}
+            style={{ objectFit: "contain" }}
           />
           <span
             style={{

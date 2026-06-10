@@ -76,6 +76,11 @@ textarea {
   font-family: var(--font-body, "Hanken Grotesk", sans-serif);
 }
 
+/* Prevent Tailwind preflight's height:auto from causing next/image aspect-ratio warnings */
+img[data-nimg="1"] {
+  height: revert;
+}
+
 ::selection {
   background: rgba(232, 162, 61, 0.3);
 }

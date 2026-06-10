@@ -33,7 +33,7 @@ export default function Home() {
           width={80}
           height={80}
           alt="Cowcular"
-          style={{ objectFit: "contain", height: "auto" }}
+          style={{ objectFit: "contain" }}
           priority
         />
         <h1
