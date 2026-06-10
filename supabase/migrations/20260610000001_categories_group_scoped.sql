@@ -2,6 +2,12 @@
 -- Remove per-user seeded categories (replaced by system ones below)
 DELETE FROM public.categories WHERE is_system = false;
 
+-- Drop old RLS policies first (they depend on user_id)
+DROP POLICY IF EXISTS "Users can view system categories and their own" ON public.categories;
+DROP POLICY IF EXISTS "Authenticated users can create their own categories" ON public.categories;
+DROP POLICY IF EXISTS "Users can update own categories" ON public.categories;
+DROP POLICY IF EXISTS "Users can delete own categories" ON public.categories;
+
 -- Drop old user_id index
 DROP INDEX IF EXISTS categories_user_idx;
 
@@ -14,12 +20,6 @@ ALTER TABLE public.categories DROP COLUMN user_id;
 
 -- Add index on group_id
 CREATE INDEX categories_group_idx ON public.categories(group_id);
-
--- Drop old RLS policies
-DROP POLICY IF EXISTS "Users can view system categories and their own" ON public.categories;
-DROP POLICY IF EXISTS "Authenticated users can create their own categories" ON public.categories;
-DROP POLICY IF EXISTS "Users can update own categories" ON public.categories;
-DROP POLICY IF EXISTS "Users can delete own categories" ON public.categories;
 
 -- New RLS policies
 CREATE POLICY "view_categories"
