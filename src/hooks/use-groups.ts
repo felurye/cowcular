@@ -6,6 +6,14 @@ import {
 } from "@tanstack/react-query";
 import { apiFetch, jsonPost } from "@/lib/api-fetch";
 
+function jsonPatch<T>(path: string, body: unknown): Promise<T> {
+  return apiFetch<T>(path, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 export const groupKeys = {
   all: ["groups"] as const,
   byId: (id: string) => ["groups", id] as const,
@@ -128,6 +136,26 @@ export function useRemoveMember(
   return useMutation({
     mutationFn: ({ groupId, memberId }: { groupId: string; memberId: string }) =>
       apiFetch(`/api/groups/${groupId}/members/${memberId}`, { method: "DELETE" }),
+    onSuccess: async (...args) => {
+      await qc.invalidateQueries({ queryKey: groupKeys.all });
+      opts?.onSuccess?.(...args);
+    },
+    onError: opts?.onError,
+  });
+}
+
+export function useUpdateGroup(
+  opts?: Pick<UseMutationOptions<unknown, Error, unknown>, "onSuccess" | "onError">,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: { name?: string; eventType?: string | null; closingMode?: string | null };
+    }) => jsonPatch(`/api/groups/${id}`, data),
     onSuccess: async (...args) => {
       await qc.invalidateQueries({ queryKey: groupKeys.all });
       opts?.onSuccess?.(...args);

@@ -37,6 +37,7 @@ import {
   useInviteByEmail,
   useInviteByUsername,
   useRemoveMember,
+  useUpdateGroup,
 } from "@/hooks/use-groups";
 import { useConfirmTransfer, useMarkTransferPaid, useTransferList } from "@/hooks/use-transfers";
 import { useAuthStore } from "@/store/auth";
@@ -2071,6 +2072,146 @@ function AddExternalModal({ groupId, onClose }: { groupId: string; onClose: () =
   );
 }
 
+// ─── EditGroupModal ───────────────────────────────────────────────────────────
+
+function EditGroupModal({
+  group,
+  onClose,
+  onSuccess,
+}: {
+  group: Group;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [name, setName] = useState(group.name);
+  const [eventType, setEventType] = useState<EventType | "">(group.event_type ?? "");
+  const [closingMode, setClosingMode] = useState<"AUTO" | "MANUAL" | "">(group.closing_mode ?? "");
+  const [error, setError] = useState("");
+
+  const updateMutation = useUpdateGroup({
+    onSuccess: () => {
+      onSuccess();
+      onClose();
+    },
+    onError: (e) => setError(e.message),
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    const payload: { name?: string; eventType?: string | null; closingMode?: string | null } = {};
+    if (name.trim() !== group.name) payload.name = name.trim();
+    if (group.type === "EVENT" && eventType !== (group.event_type ?? ""))
+      payload.eventType = eventType || null;
+    if (group.type === "HOME" && closingMode !== (group.closing_mode ?? ""))
+      payload.closingMode = closingMode || null;
+    if (Object.keys(payload).length === 0) {
+      onClose();
+      return;
+    }
+    updateMutation.mutate({ id: group.id, data: payload });
+  };
+
+  return (
+    <ModalBackdrop onClose={onClose}>
+      <ModalCard title="Editar grupo" onClose={onClose} maxWidth={440}>
+        {error && <ErrorBanner msg={error} />}
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            <label htmlFor="eg-name" style={labelStyle}>
+              Nome
+            </label>
+            <input
+              id="eg-name"
+              style={inputStyle}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
+
+          {group.type === "EVENT" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <label htmlFor="eg-event-type" style={labelStyle}>
+                Tipo de evento
+              </label>
+              <select
+                id="eg-event-type"
+                style={selectStyle}
+                value={eventType}
+                onChange={(e) => setEventType(e.target.value as EventType)}
+              >
+                <option value="TRIP">Viagem</option>
+                <option value="BBQ">Churrasqueira</option>
+                <option value="GIFT">Presente</option>
+                <option value="FUNDRAISER">Arrecadação</option>
+                <option value="GENERAL">Geral</option>
+              </select>
+            </div>
+          )}
+
+          {group.type === "HOME" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <label htmlFor="eg-closing-mode" style={labelStyle}>
+                Fechamento mensal
+              </label>
+              <select
+                id="eg-closing-mode"
+                style={selectStyle}
+                value={closingMode}
+                onChange={(e) => setClosingMode(e.target.value as "AUTO" | "MANUAL" | "")}
+              >
+                <option value="">Sem fechamento automático</option>
+                <option value="MANUAL">Manual</option>
+                <option value="AUTO">Automático</option>
+              </select>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                flex: 1,
+                background: "transparent",
+                border: "1.5px solid var(--line-strong)",
+                color: "var(--ink)",
+                fontFamily: "var(--font-body)",
+                fontWeight: 650,
+                fontSize: 14,
+                borderRadius: 11,
+                padding: "10px 16px",
+                cursor: "pointer",
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={updateMutation.isPending}
+              style={{
+                flex: 1,
+                background: updateMutation.isPending ? "var(--amber-soft)" : "var(--amber)",
+                color: "#3a2a08",
+                fontFamily: "var(--font-body)",
+                fontWeight: 680,
+                fontSize: 14,
+                border: "none",
+                borderRadius: 11,
+                padding: "10px 16px",
+                cursor: updateMutation.isPending ? "not-allowed" : "pointer",
+              }}
+            >
+              {updateMutation.isPending ? "Salvando..." : "Salvar alterações"}
+            </button>
+          </div>
+        </form>
+      </ModalCard>
+    </ModalBackdrop>
+  );
+}
+
 // ─── MembersTab ───────────────────────────────────────────────────────────────
 
 function MembersTab({
@@ -3010,8 +3151,9 @@ export default function GroupPage() {
   const [copied, setCopied] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [closeError, setCloseError] = useState("");
+  const [showEditGroup, setShowEditGroup] = useState(false);
 
-  const { data: group, isLoading, error } = useGroup(params.id);
+  const { data: group, isLoading, error, refetch: refetchGroup } = useGroup(params.id);
 
   const closeMutation = useCloseGroup({
     onSuccess: () => setShowCloseConfirm(false),
@@ -3086,6 +3228,13 @@ export default function GroupPage() {
 
   return (
     <>
+      {showEditGroup && (
+        <EditGroupModal
+          group={g}
+          onClose={() => setShowEditGroup(false)}
+          onSuccess={() => void refetchGroup()}
+        />
+      )}
       {showCloseConfirm && (
         <ModalBackdrop onClose={() => setShowCloseConfirm(false)}>
           <ModalCard
@@ -3208,25 +3357,47 @@ export default function GroupPage() {
             {g.code} {copied ? "✓ copiado" : "📋"}
           </button>
         </div>
-        {isAdmin && !isReadOnly && g.type === "EVENT" && (
-          <button
-            type="button"
-            onClick={() => setShowCloseConfirm(true)}
-            style={{
-              background: "transparent",
-              color: "var(--coral)",
-              border: "1.5px solid rgba(194,96,63,.4)",
-              borderRadius: 10,
-              padding: "8px 15px",
-              fontSize: 13,
-              fontWeight: 650,
-              cursor: "pointer",
-              fontFamily: "var(--font-body)",
-              whiteSpace: "nowrap",
-            }}
-          >
-            Encerrar grupo
-          </button>
+        {isAdmin && !isReadOnly && (
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => setShowEditGroup(true)}
+              style={{
+                background: "transparent",
+                color: "var(--ink-soft)",
+                border: "1.5px solid var(--line-strong)",
+                borderRadius: 10,
+                padding: "8px 15px",
+                fontSize: 13,
+                fontWeight: 650,
+                cursor: "pointer",
+                fontFamily: "var(--font-body)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Editar
+            </button>
+            {g.type === "EVENT" && (
+              <button
+                type="button"
+                onClick={() => setShowCloseConfirm(true)}
+                style={{
+                  background: "transparent",
+                  color: "var(--coral)",
+                  border: "1.5px solid rgba(194,96,63,.4)",
+                  borderRadius: 10,
+                  padding: "8px 15px",
+                  fontSize: 13,
+                  fontWeight: 650,
+                  cursor: "pointer",
+                  fontFamily: "var(--font-body)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Encerrar grupo
+              </button>
+            )}
+          </div>
         )}
       </div>
 
