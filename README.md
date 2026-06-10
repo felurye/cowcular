@@ -46,7 +46,7 @@ Edite o `.env` com os valores do seu projeto no Supabase:
 
 **3. Configure o banco de dados**
 
-No Supabase, execute as migrations disponíveis em `packages/db/prisma/migrations/` pelo SQL Editor ou pela CLI do Supabase.
+No Supabase, execute as migrations disponíveis em `supabase/migrations/` pelo SQL Editor ou pela CLI do Supabase.
 
 **4. Inicie o ambiente de desenvolvimento**
 
