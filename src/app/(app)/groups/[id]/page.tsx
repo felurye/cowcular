@@ -17,7 +17,19 @@ import {
   useBalancePreview,
   useCloseBalance,
 } from "@/hooks/use-balances";
-import { type CategoryItem, useCategoryList, useCreateCategory } from "@/hooks/use-categories";
+import {
+  type CategoryItem,
+  useCategoryList,
+  useCreateCategory,
+  useDeleteCategory,
+} from "@/hooks/use-categories";
+import {
+  type CategoryBudget,
+  useCategoryBudgets,
+  useCreateCategoryBudget,
+  useDeleteCategoryBudget,
+  useUpdateCategoryBudget,
+} from "@/hooks/use-category-budgets";
 import {
   useAddExternalMember,
   useCloseGroup,
@@ -339,14 +351,12 @@ function CategorySelect({
   const { data: categories } = useCategoryList(groupId);
   const [showNew, setShowNew] = useState(false);
   const [newName, setNewName] = useState("");
-  const [newIcon, setNewIcon] = useState("");
 
   const createMutation = useCreateCategory({
     onSuccess: (created) => {
       onChange(created.id);
       setShowNew(false);
       setNewName("");
-      setNewIcon("");
     },
     onError: (e) => onError(e.message),
   });
@@ -366,13 +376,6 @@ function CategorySelect({
       {showNew ? (
         <div style={{ display: "flex", gap: 6 }}>
           <input
-            placeholder="😀"
-            value={newIcon}
-            onChange={(e) => setNewIcon(e.target.value)}
-            style={{ ...inputStyle, width: 52, textAlign: "center", padding: "10px 8px" }}
-            maxLength={2}
-          />
-          <input
             placeholder="Nome da categoria"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
@@ -382,16 +385,11 @@ function CategorySelect({
             onKeyDown={(e) => {
               if (e.key === "Enter" && newName.trim()) {
                 e.preventDefault();
-                createMutation.mutate({
-                  name: newName.trim(),
-                  icon: newIcon || undefined,
-                  groupId,
-                });
+                createMutation.mutate({ name: newName.trim(), groupId });
               }
               if (e.key === "Escape") {
                 setShowNew(false);
                 setNewName("");
-                setNewIcon("");
               }
             }}
           />
@@ -400,7 +398,6 @@ function CategorySelect({
             onClick={() => {
               setShowNew(false);
               setNewName("");
-              setNewIcon("");
             }}
             style={{
               background: "transparent",
@@ -419,9 +416,7 @@ function CategorySelect({
           <button
             type="button"
             disabled={!newName.trim() || createMutation.isPending}
-            onClick={() =>
-              createMutation.mutate({ name: newName.trim(), icon: newIcon || undefined, groupId })
-            }
+            onClick={() => createMutation.mutate({ name: newName.trim(), groupId })}
             style={{
               background: "var(--amber)",
               color: "#3a2a08",
@@ -2270,6 +2265,363 @@ function MembersTab({
   );
 }
 
+// ─── CategoryBudgetsSection ───────────────────────────────────────────────────
+
+function CategoryBudgetsSection({
+  groupId,
+  byCategory,
+  month,
+  year,
+  canEdit,
+}: {
+  groupId: string;
+  byCategory: {
+    categoryId: string;
+    categoryName: string;
+    categoryIcon: string | null;
+    totalExpense: number;
+  }[];
+  month: number;
+  year: number;
+  canEdit: boolean;
+}) {
+  const { data: budgets } = useCategoryBudgets(groupId, month, year);
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
+  const [editLimit, setEditLimit] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const createBudget = useCreateCategoryBudget({
+    onSuccess: () => {
+      setEditingCatId(null);
+      setEditLimit("");
+    },
+    onError: (e) => setErrorMsg(e.message),
+  });
+  const updateBudget = useUpdateCategoryBudget({
+    onSuccess: () => {
+      setEditingCatId(null);
+      setEditLimit("");
+    },
+    onError: (e) => setErrorMsg(e.message),
+  });
+  const deleteBudget = useDeleteCategoryBudget({
+    onError: (e) => setErrorMsg(e.message),
+  });
+
+  const getBudget = (categoryId: string) =>
+    (budgets as CategoryBudget[] | undefined)?.find((b) => b.category_id === categoryId);
+
+  if (byCategory.length === 0) return null;
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div
+        style={{
+          fontSize: 12.5,
+          fontWeight: 650,
+          color: "var(--ink-faint)",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          marginBottom: 10,
+        }}
+      >
+        Por categoria
+      </div>
+      {errorMsg && <ErrorBanner msg={errorMsg} />}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {byCategory.map((cat) => {
+          const budget = getBudget(cat.categoryId);
+          const pct = budget
+            ? Math.min((cat.totalExpense / Number(budget.limit_amount)) * 100, 100)
+            : 0;
+          const isOver = budget ? cat.totalExpense > Number(budget.limit_amount) : false;
+          const barColor = !budget
+            ? undefined
+            : isOver
+              ? "var(--coral)"
+              : pct >= 80
+                ? "var(--amber)"
+                : "var(--teal)";
+          const isEditing = editingCatId === cat.categoryId;
+
+          return (
+            <div
+              key={cat.categoryId}
+              style={{
+                background: "var(--surface)",
+                border: "1px solid var(--line)",
+                borderRadius: 13,
+                padding: "12px 16px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: budget ? 8 : 0,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {cat.categoryIcon && <span style={{ fontSize: 16 }}>{cat.categoryIcon}</span>}
+                  <span style={{ fontSize: 14, color: "var(--ink)", fontWeight: 500 }}>
+                    {cat.categoryName}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: isOver ? "var(--coral)" : "var(--ink)",
+                    }}
+                  >
+                    {fmtAmount(cat.totalExpense)}
+                  </span>
+                  {budget && (
+                    <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>
+                      / {fmtAmount(Number(budget.limit_amount))}
+                    </span>
+                  )}
+                  {canEdit && !isEditing && (
+                    <div style={{ display: "flex", gap: 2 }}>
+                      {budget ? (
+                        <>
+                          <button
+                            type="button"
+                            title="Editar limite"
+                            onClick={() => {
+                              setEditingCatId(cat.categoryId);
+                              setEditLimit(String(budget.limit_amount));
+                            }}
+                            style={{
+                              background: "transparent",
+                              border: "none",
+                              cursor: "pointer",
+                              color: "var(--ink-faint)",
+                              fontSize: 13,
+                              padding: "2px 4px",
+                            }}
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            type="button"
+                            title="Remover limite"
+                            disabled={deleteBudget.isPending}
+                            onClick={() => deleteBudget.mutate({ id: budget.id })}
+                            style={{
+                              background: "transparent",
+                              border: "none",
+                              cursor: "pointer",
+                              color: "var(--ink-faint)",
+                              fontSize: 13,
+                              padding: "2px 4px",
+                            }}
+                          >
+                            🗑️
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingCatId(cat.categoryId);
+                            setEditLimit("");
+                          }}
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            cursor: "pointer",
+                            color: "var(--ink-faint)",
+                            fontSize: 12,
+                            padding: "2px 4px",
+                            fontFamily: "var(--font-body)",
+                          }}
+                        >
+                          + Limite
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {budget && (
+                <div
+                  style={{
+                    height: 5,
+                    background: "var(--line)",
+                    borderRadius: 3,
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${pct}%`,
+                      background: barColor,
+                      borderRadius: 3,
+                      transition: "width 0.3s",
+                    }}
+                  />
+                </div>
+              )}
+              {isEditing && canEdit && (
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 6,
+                    marginTop: 10,
+                    alignItems: "center",
+                  }}
+                >
+                  <input
+                    type="number"
+                    placeholder="Limite (R$)"
+                    value={editLimit}
+                    onChange={(e) => setEditLimit(e.target.value)}
+                    // biome-ignore lint/a11y/noAutofocus: foco intencional ao abrir campo de limite
+                    autoFocus
+                    min="0.01"
+                    step="0.01"
+                    style={{ ...inputStyle, flex: 1, fontSize: 13, padding: "6px 10px" }}
+                  />
+                  <button
+                    type="button"
+                    disabled={
+                      !editLimit ||
+                      Number(editLimit) <= 0 ||
+                      createBudget.isPending ||
+                      updateBudget.isPending
+                    }
+                    onClick={() => {
+                      const amount = Number(editLimit);
+                      if (budget) {
+                        updateBudget.mutate({ id: budget.id, limitAmount: amount });
+                      } else {
+                        createBudget.mutate({
+                          groupId,
+                          categoryId: cat.categoryId,
+                          month,
+                          year,
+                          limitAmount: amount,
+                        });
+                      }
+                    }}
+                    style={{
+                      background: "var(--amber)",
+                      color: "#3a2a08",
+                      border: "none",
+                      borderRadius: 9,
+                      padding: "6px 12px",
+                      fontSize: 13,
+                      fontWeight: 650,
+                      cursor: "pointer",
+                      fontFamily: "var(--font-body)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Salvar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingCatId(null);
+                      setEditLimit("");
+                    }}
+                    style={{
+                      background: "transparent",
+                      color: "var(--ink-faint)",
+                      border: "1px solid var(--line-strong)",
+                      borderRadius: 9,
+                      padding: "6px 10px",
+                      fontSize: 13,
+                      cursor: "pointer",
+                      fontFamily: "var(--font-body)",
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── CustomCategoriesSection ──────────────────────────────────────────────────
+
+function CustomCategoriesSection({ groupId }: { groupId: string }) {
+  const { data: categories } = useCategoryList(groupId);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const deleteCategory = useDeleteCategory({
+    onError: (e) => setErrorMsg(e.message),
+  });
+
+  const customCategories =
+    (categories as CategoryItem[] | undefined)?.filter((c) => !c.is_system) ?? [];
+
+  if (customCategories.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 24 }}>
+      <div
+        style={{
+          fontSize: 12.5,
+          fontWeight: 650,
+          color: "var(--ink-faint)",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          marginBottom: 10,
+        }}
+      >
+        Categorias personalizadas
+      </div>
+      {errorMsg && <ErrorBanner msg={errorMsg} />}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {customCategories.map((cat) => (
+          <div
+            key={cat.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "10px 14px",
+              background: "var(--surface-alt)",
+              borderRadius: 11,
+            }}
+          >
+            <span style={{ fontSize: 13.5, color: "var(--ink)" }}>
+              {cat.icon ? `${cat.icon} ` : ""}
+              {cat.name}
+            </span>
+            <button
+              type="button"
+              disabled={deleteCategory.isPending}
+              onClick={() => deleteCategory.mutate({ id: cat.id })}
+              title="Arquivar categoria"
+              style={{
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--ink-faint)",
+                fontSize: 14,
+                padding: "2px 6px",
+              }}
+            >
+              🗑️
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── PreviewTab ───────────────────────────────────────────────────────────────
 
 function PreviewTab({ group }: { group: Group }) {
@@ -2285,6 +2637,12 @@ function PreviewTab({ group }: { group: Group }) {
   );
 
   const preview = data as BalancePreview | undefined;
+
+  const currentBalance = group.balances.find(
+    (b) => b.month === previewMonth && b.year === previewYear,
+  );
+  const isMonthOpenForBudget = !currentBalance || currentBalance.status === "OPEN";
+  const canEditBudgets = !isEvent && group.status === "ACTIVE" && isMonthOpenForBudget;
 
   if (isLoading) {
     return (
@@ -2378,6 +2736,16 @@ function PreviewTab({ group }: { group: Group }) {
               </div>
             </div>
           </div>
+
+          {(preview.byCategory ?? []).length > 0 && (
+            <CategoryBudgetsSection
+              groupId={group.id}
+              byCategory={preview.byCategory ?? []}
+              month={previewMonth}
+              year={previewYear}
+              canEdit={canEditBudgets}
+            />
+          )}
 
           {preview.netTransfers.length === 0 ? (
             <div
@@ -2478,6 +2846,8 @@ function PreviewTab({ group }: { group: Group }) {
               </div>
             </div>
           )}
+
+          <CustomCategoriesSection groupId={group.id} />
         </>
       )}
     </div>
