@@ -50,6 +50,20 @@ export function useMarkAccountPaid(
   });
 }
 
+export function useUnmarkAccountPaid(
+  opts?: Pick<UseMutationOptions<unknown, Error, { id: string }>, "onSuccess" | "onError">,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) => jsonPost(`/api/accounts/${id}/unmark-paid`, {}),
+    onSuccess: async (...args) => {
+      await qc.invalidateQueries({ queryKey: ["accounts"] });
+      opts?.onSuccess?.(...args);
+    },
+    onError: opts?.onError,
+  });
+}
+
 export function useDeleteAccount(
   opts?: Pick<
     UseMutationOptions<unknown, Error, { id: string; force?: boolean }>,

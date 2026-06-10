@@ -8,6 +8,7 @@ import {
   useDeferAccount,
   useDeleteAccount,
   useMarkAccountPaid,
+  useUnmarkAccountPaid,
   useUpdateAccount,
 } from "@/hooks/use-accounts";
 import {
@@ -16,7 +17,7 @@ import {
   useBalancePreview,
   useCloseBalance,
 } from "@/hooks/use-balances";
-import { useCategoryList } from "@/hooks/use-categories";
+import { type CategoryItem, useCategoryList, useCreateCategory } from "@/hooks/use-categories";
 import {
   useAddExternalMember,
   useCloseGroup,
@@ -322,6 +323,143 @@ function ErrorBanner({ msg }: { msg: string }) {
   );
 }
 
+// ─── CategorySelect ───────────────────────────────────────────────────────────
+
+function CategorySelect({
+  groupId,
+  value,
+  onChange,
+  onError,
+}: {
+  groupId: string;
+  value: string;
+  onChange: (id: string) => void;
+  onError: (msg: string) => void;
+}) {
+  const { data: categories } = useCategoryList(groupId);
+  const [showNew, setShowNew] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newIcon, setNewIcon] = useState("");
+
+  const createMutation = useCreateCategory({
+    onSuccess: (created) => {
+      onChange(created.id);
+      setShowNew(false);
+      setNewName("");
+      setNewIcon("");
+    },
+    onError: (e) => onError(e.message),
+  });
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      <span style={labelStyle}>Categoria</span>
+      <select style={selectStyle} value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">Sem categoria</option>
+        {(categories as CategoryItem[] | undefined)?.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.icon ? `${c.icon} ` : ""}
+            {c.name}
+          </option>
+        ))}
+      </select>
+      {showNew ? (
+        <div style={{ display: "flex", gap: 6 }}>
+          <input
+            placeholder="😀"
+            value={newIcon}
+            onChange={(e) => setNewIcon(e.target.value)}
+            style={{ ...inputStyle, width: 52, textAlign: "center", padding: "10px 8px" }}
+            maxLength={2}
+          />
+          <input
+            placeholder="Nome da categoria"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            // biome-ignore lint/a11y/noAutofocus: foco intencional ao abrir campo de nova categoria
+            autoFocus
+            style={{ ...inputStyle, flex: 1 }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newName.trim()) {
+                e.preventDefault();
+                createMutation.mutate({
+                  name: newName.trim(),
+                  icon: newIcon || undefined,
+                  groupId,
+                });
+              }
+              if (e.key === "Escape") {
+                setShowNew(false);
+                setNewName("");
+                setNewIcon("");
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setShowNew(false);
+              setNewName("");
+              setNewIcon("");
+            }}
+            style={{
+              background: "transparent",
+              color: "var(--ink-faint)",
+              border: "1px solid var(--line-strong)",
+              borderRadius: 9,
+              padding: "8px 10px",
+              fontSize: 13,
+              cursor: "pointer",
+              fontFamily: "var(--font-body)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            disabled={!newName.trim() || createMutation.isPending}
+            onClick={() =>
+              createMutation.mutate({ name: newName.trim(), icon: newIcon || undefined, groupId })
+            }
+            style={{
+              background: "var(--amber)",
+              color: "#3a2a08",
+              border: "none",
+              borderRadius: 9,
+              padding: "8px 12px",
+              fontSize: 13,
+              fontWeight: 650,
+              cursor: "pointer",
+              fontFamily: "var(--font-body)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Criar
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setShowNew(true)}
+          style={{
+            alignSelf: "flex-start",
+            background: "transparent",
+            border: "none",
+            color: "var(--ink-faint)",
+            fontSize: 12.5,
+            cursor: "pointer",
+            fontFamily: "var(--font-body)",
+            padding: 0,
+          }}
+        >
+          + Nova categoria
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── CreateAccountModal ───────────────────────────────────────────────────────
 
 function CreateAccountModal({
@@ -361,8 +499,6 @@ function CreateAccountModal({
   const [useSplits, setUseSplits] = useState(activeMembers.length > 1);
   const [splits, setSplits] = useState(getInitialSplits);
   const [error, setError] = useState("");
-
-  const { data: categories } = useCategoryList();
 
   const createMutation = useCreateAccount({
     onSuccess: () => {
@@ -486,24 +622,13 @@ function CreateAccountModal({
                 onChange={(e) => setDueDate(e.target.value)}
               />
             </div>
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
-              <label htmlFor="ac-cat" style={labelStyle}>
-                Categoria
-              </label>
-              <select
-                id="ac-cat"
-                style={selectStyle}
+            <div style={{ flex: 1 }}>
+              <CategorySelect
+                groupId={group.id}
                 value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-              >
-                <option value="">Sem categoria</option>
-                {(categories as Category[] | undefined)?.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.icon ? `${c.icon} ` : ""}
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setCategoryId}
+                onError={setError}
+              />
             </div>
           </div>
 
@@ -744,8 +869,6 @@ function EditAccountModal({
   const [replicateToFuture, setReplicateToFuture] = useState(false);
   const [error, setError] = useState("");
 
-  const { data: categories } = useCategoryList();
-
   const updateMutation = useUpdateAccount({
     onSuccess: () => onSuccess(),
     onError: (err) => setError(err.message),
@@ -864,24 +987,13 @@ function EditAccountModal({
                 onChange={(e) => setDueDate(e.target.value)}
               />
             </div>
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
-              <label htmlFor="ed-cat" style={labelStyle}>
-                Categoria
-              </label>
-              <select
-                id="ed-cat"
-                style={selectStyle}
+            <div style={{ flex: 1 }}>
+              <CategorySelect
+                groupId={group.id}
                 value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-              >
-                <option value="">Sem categoria</option>
-                {(categories as Category[] | undefined)?.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.icon ? `${c.icon} ` : ""}
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setCategoryId}
+                onError={setError}
+              />
             </div>
           </div>
 
@@ -1113,6 +1225,14 @@ function AccountDetailModal({
     onError: (e) => setError(e.message),
   });
 
+  const unmarkPaidMutation = useUnmarkAccountPaid({
+    onSuccess: () => {
+      onMutate();
+      onClose();
+    },
+    onError: (e) => setError(e.message),
+  });
+
   const deleteMutation = useDeleteAccount({
     onSuccess: () => {
       onMutate();
@@ -1303,6 +1423,26 @@ function AccountDetailModal({
                 }}
               >
                 Marcar como pago
+              </button>
+            )}
+            {account.status === "PAID" && isMonthOpen && group.status !== "CLOSED" && (
+              <button
+                type="button"
+                disabled={unmarkPaidMutation.isPending}
+                onClick={() => unmarkPaidMutation.mutate({ id: account.id })}
+                style={{
+                  background: "rgba(63,167,160,.1)",
+                  color: "var(--teal-deep)",
+                  border: "1.5px solid rgba(63,167,160,.3)",
+                  borderRadius: 9,
+                  padding: "8px 14px",
+                  fontSize: 13.5,
+                  fontWeight: 650,
+                  cursor: "pointer",
+                  fontFamily: "var(--font-body)",
+                }}
+              >
+                Remover pagamento
               </button>
             )}
             {account.status === "OPEN" && group.type === "HOME" && (

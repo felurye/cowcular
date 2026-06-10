@@ -36,20 +36,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const categories = [
-    { name: "Moradia", icon: "🏠" },
-    { name: "Alimentação", icon: "🍽️" },
-    { name: "Transporte", icon: "🚗" },
-    { name: "Saúde", icon: "🏥" },
-    { name: "Lazer", icon: "🎉" },
-    { name: "Serviços", icon: "🔧" },
-    { name: "Viagem", icon: "✈️" },
-    { name: "Outros", icon: "📦" },
-  ];
-
-  await supabaseAdmin
-    .from("categories")
-    .insert(categories.map((c) => ({ ...c, is_system: false, user_id: authId })));
-
   return NextResponse.json({ ok: true });
 }

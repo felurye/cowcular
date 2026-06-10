@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { useAccountList } from "@/hooks/use-accounts";
 import { useCreateGroup, useGroupList } from "@/hooks/use-groups";
 import { useTransferList } from "@/hooks/use-transfers";
@@ -665,11 +666,20 @@ function SectionHeader({ title, count }: { title: string; count?: number }) {
   );
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const user = useAuthStore((s) => s.user);
   const { data: groups, isLoading: groupsLoading } = useGroupList();
   const { data: transfers } = useTransferList(undefined, { refetchInterval: 60_000 });
   const [showCreate, setShowCreate] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setShowCreate(true);
+      router.replace("/dashboard");
+    }
+  }, [searchParams, router]);
 
   const allTransfers = (transfers as DashTransfer[] | undefined) ?? [];
 
@@ -931,5 +941,13 @@ export default function DashboardPage() {
         </div>
       </div>
     </>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense>
+      <DashboardContent />
+    </Suspense>
   );
 }

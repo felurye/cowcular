@@ -242,7 +242,7 @@ export function Sidebar() {
           );
         })}
         <Link
-          href="/dashboard"
+          href="/dashboard?new=1"
           style={{
             display: "flex",
             alignItems: "center",
