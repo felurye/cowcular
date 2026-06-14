@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 💬 Discussões gerais
+    url: https://github.com/felurye/cowcular/discussions
+    about: Para dúvidas, ideias em aberto ou conversas sobre o projeto

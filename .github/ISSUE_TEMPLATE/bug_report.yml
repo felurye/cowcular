@@ -1,0 +1,45 @@
+name: 🐛 Bug Report
+description: Reportar um comportamento inesperado ou erro
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por reportar! Preencha apenas o que for relevante para o seu caso.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: O que aconteceu?
+      description: Descreva o problema de forma breve e direta.
+      placeholder: "Ex: ao clicar em X, acontece Y em vez de Z..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Como reproduzir
+      description: Passos para reproduzir o comportamento.
+      placeholder: |
+        1. Acesse...
+        2. Clique em...
+        3. Veja o erro
+    validations:
+      required: false
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: O que era esperado?
+      placeholder: "Ex: deveria exibir Y"
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexto adicional
+      description: Screenshots, logs, versão do browser, etc.
+    validations:
+      required: false

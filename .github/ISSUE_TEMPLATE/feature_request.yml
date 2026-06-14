@@ -1,0 +1,33 @@
+name: 💡 Feature Request
+description: Sugerir uma nova funcionalidade ou melhoria
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Tem uma ideia? Ótimo! Descreva o que você gostaria de ver no Cowcular.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Qual problema isso resolve?
+      description: Contexto sobre a necessidade ou dificuldade atual.
+      placeholder: "Ex: hoje não consigo fazer X, o que me obriga a..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solução proposta
+      description: Como você imagina que isso funcionaria?
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas consideradas
+      description: Você pensou em outras abordagens?
+    validations:
+      required: false

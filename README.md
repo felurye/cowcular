@@ -1,7 +1,6 @@
-# Cowcular
+# Cowcular 🐮
 
-> Controle financeiro compartilhado para lares, grupos e uso pessoal.
-
+Controle financeiro compartilhado para lares, grupos e uso pessoal.
 Cowcular é um trocadilho triplo: **cow** (a vaca mascote), **calcular** (a função central) e **lar** (o contexto âncora). Funciona também como verbo - _"vamos cowcular isso"_.
 
 ## O que é
@@ -93,16 +92,3 @@ Todas as variáveis ficam no `.env` na raiz do projeto.
 | `NEXT_PUBLIC_SUPABASE_URL`      | Pública (browser)     | Cliente Supabase no navegador       |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Pública (browser)     | Autenticação e queries com RLS      |
 | `SUPABASE_SERVICE_ROLE_KEY`     | Privada (server only) | API routes que precisam ignorar RLS |
-
-## Stack
-
-| Camada         | Tecnologia                                                   |
-| -------------- | ------------------------------------------------------------ |
-| Frontend       | Next.js 16 (App Router), TypeScript, Tailwind CSS v4         |
-| Estado         | Zustand (auth global), TanStack Query v5 (cache de servidor) |
-| Backend        | Next.js API Route Handlers                                   |
-| Autenticação   | Supabase Auth (`@supabase/ssr`)                              |
-| Banco de dados | Supabase (PostgreSQL gerenciado)                             |
-| Gráficos       | Recharts                                                     |
-| Linter         | Biome (lint + format)                                        |
-| Deploy         | Vercel                                                       |
