@@ -1,5 +1,5 @@
-import { BottomNav, Sidebar } from "@/components/sidebar";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { BottomNav, Sidebar } from "@/components/sidebar";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -10,10 +10,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         style={{
           flex: 1,
           minWidth: 0,
-          height: "100vh",
+          minHeight: 0,
           overflowY: "auto",
-          display: "flex",
-          flexDirection: "column",
         }}
       >
         <ErrorBoundary>{children}</ErrorBoundary>

@@ -3290,101 +3290,80 @@ export default function GroupPage() {
         </ModalBackdrop>
       )}
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 14,
-          padding: "18px var(--gutter) 16px",
-          position: "sticky",
-          top: 0,
-          zIndex: 20,
-          background: "var(--bg-blur)",
-          backdropFilter: "blur(8px)",
-          borderBottom: "1px solid var(--line)",
-        }}
-      >
-        <span style={{ fontSize: 28 }}>{groupEmoji}</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <h1
-              style={{
-                margin: 0,
-                fontFamily: "var(--font-display)",
-                fontSize: 22,
-                fontWeight: 800,
-                letterSpacing: "-0.02em",
-                color: "var(--ink)",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {g.name}
-            </h1>
-            {isReadOnly && (
-              <span
+      <div style={{ position: "sticky", top: 0, zIndex: 20 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            padding: "18px var(--gutter) 16px",
+            background: "var(--bg-blur)",
+            backdropFilter: "blur(8px)",
+            borderBottom: "1px solid var(--line)",
+          }}
+        >
+          <span style={{ fontSize: 28 }}>{groupEmoji}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <h1
                 style={{
-                  fontSize: 11.5,
-                  fontWeight: 650,
-                  padding: "3px 9px",
-                  borderRadius: 7,
-                  background: "rgba(194,96,63,.1)",
-                  color: "var(--coral)",
-                  flexShrink: 0,
+                  margin: 0,
+                  fontFamily: "var(--font-display)",
+                  fontSize: 22,
+                  fontWeight: 800,
+                  letterSpacing: "-0.02em",
+                  color: "var(--ink)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
                 }}
               >
-                Encerrado
-              </span>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={copyCode}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: 12.5,
-              color: "var(--ink-faint)",
-              padding: 0,
-              fontFamily: "var(--font-mono)",
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-            }}
-          >
-            {g.code} {copied ? "✓ copiado" : "📋"}
-          </button>
-        </div>
-        {isAdmin && !isReadOnly && (
-          <div style={{ display: "flex", gap: 8 }}>
+                {g.name}
+              </h1>
+              {isReadOnly && (
+                <span
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: 650,
+                    padding: "3px 9px",
+                    borderRadius: 7,
+                    background: "rgba(194,96,63,.1)",
+                    color: "var(--coral)",
+                    flexShrink: 0,
+                  }}
+                >
+                  Encerrado
+                </span>
+              )}
+            </div>
             <button
               type="button"
-              onClick={() => setShowEditGroup(true)}
+              onClick={copyCode}
               style={{
-                background: "transparent",
-                color: "var(--ink-soft)",
-                border: "1.5px solid var(--line-strong)",
-                borderRadius: 10,
-                padding: "8px 15px",
-                fontSize: 13,
-                fontWeight: 650,
+                background: "none",
+                border: "none",
                 cursor: "pointer",
-                fontFamily: "var(--font-body)",
-                whiteSpace: "nowrap",
+                fontSize: 12.5,
+                color: "var(--ink-faint)",
+                padding: 0,
+                fontFamily: "var(--font-mono)",
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
               }}
             >
-              Editar
+              {g.code} {copied ? "✓ copiado" : "📋"}
             </button>
-            {g.type === "EVENT" && (
+          </div>
+          {isAdmin && !isReadOnly && (
+            <div style={{ display: "flex", gap: 8 }}>
               <button
                 type="button"
-                onClick={() => setShowCloseConfirm(true)}
+                onClick={() => setShowEditGroup(true)}
                 style={{
                   background: "transparent",
-                  color: "var(--coral)",
-                  border: "1.5px solid rgba(194,96,63,.4)",
+                  color: "var(--ink-soft)",
+                  border: "1.5px solid var(--line-strong)",
                   borderRadius: 10,
                   padding: "8px 15px",
                   fontSize: 13,
@@ -3394,61 +3373,81 @@ export default function GroupPage() {
                   whiteSpace: "nowrap",
                 }}
               >
-                Encerrar grupo
+                Editar
               </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {isReadOnly && (
-        <div
-          style={{
-            padding: "10px 32px",
-            background: "rgba(194,96,63,.07)",
-            borderBottom: "1px solid rgba(194,96,63,.15)",
-            fontSize: 13.5,
-            color: "var(--coral)",
-            textAlign: "center",
-          }}
-        >
-          Este grupo foi encerrado e está em modo somente leitura.
+              {g.type === "EVENT" && (
+                <button
+                  type="button"
+                  onClick={() => setShowCloseConfirm(true)}
+                  style={{
+                    background: "transparent",
+                    color: "var(--coral)",
+                    border: "1.5px solid rgba(194,96,63,.4)",
+                    borderRadius: 10,
+                    padding: "8px 15px",
+                    fontSize: 13,
+                    fontWeight: 650,
+                    cursor: "pointer",
+                    fontFamily: "var(--font-body)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Encerrar grupo
+                </button>
+              )}
+            </div>
+          )}
         </div>
-      )}
 
-      <div
-        className="tabs-scroll"
-        style={{
-          display: "flex",
-          gap: 2,
-          padding: "0 var(--gutter)",
-          borderBottom: "1px solid var(--line)",
-          background: "var(--surface-alt)",
-          overflowX: "auto",
-        }}
-      >
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
+        {isReadOnly && (
+          <div
             style={{
-              background: "none",
-              border: "none",
-              borderBottom:
-                activeTab === tab.id ? "2px solid var(--amber-deep)" : "2px solid transparent",
-              color: activeTab === tab.id ? "var(--ink)" : "var(--ink-soft)",
-              fontFamily: "var(--font-body)",
-              fontWeight: activeTab === tab.id ? 700 : 560,
-              fontSize: 14,
-              padding: "14px 16px 12px",
-              cursor: "pointer",
-              transition: "color .12s, border-color .12s",
+              padding: "10px 32px",
+              background: "rgba(194,96,63,.07)",
+              borderBottom: "1px solid rgba(194,96,63,.15)",
+              fontSize: 13.5,
+              color: "var(--coral)",
+              textAlign: "center",
             }}
           >
-            {tab.label}
-          </button>
-        ))}
+            Este grupo foi encerrado e está em modo somente leitura.
+          </div>
+        )}
+
+        <div
+          className="tabs-scroll"
+          style={{
+            display: "flex",
+            gap: 2,
+            padding: "0 var(--gutter)",
+            borderBottom: "1px solid var(--line)",
+            background: "var(--surface-alt)",
+            overflowX: "auto",
+          }}
+        >
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                background: "none",
+                border: "none",
+                borderBottom:
+                  activeTab === tab.id ? "2px solid var(--amber-deep)" : "2px solid transparent",
+                color: activeTab === tab.id ? "var(--ink)" : "var(--ink-soft)",
+                fontFamily: "var(--font-body)",
+                fontWeight: activeTab === tab.id ? 700 : 560,
+                fontSize: 14,
+                padding: "14px 16px 12px",
+                cursor: "pointer",
+                transition: "color .12s, border-color .12s",
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div style={{ padding: "24px var(--gutter) calc(60px + var(--bottom-nav-h))" }}>
