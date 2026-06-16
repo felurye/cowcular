@@ -496,7 +496,7 @@ function CreateAccountModal({
   const [splits, setSplits] = useState(getInitialSplits);
   const [error, setError] = useState("");
 
-  const createMutation = useCreateAccount({
+  const createMutation = useCreateAccount(group.id, {
     onSuccess: () => {
       onSuccess();
       onClose();
@@ -865,7 +865,7 @@ function EditAccountModal({
   const [replicateToFuture, setReplicateToFuture] = useState(false);
   const [error, setError] = useState("");
 
-  const updateMutation = useUpdateAccount({
+  const updateMutation = useUpdateAccount(group.id, {
     onSuccess: () => onSuccess(),
     onError: (err) => setError(err.message),
   });
@@ -1213,7 +1213,7 @@ function AccountDetailModal({
   })();
   const canEdit = account.status === "OPEN" && isMonthOpen && group.status !== "CLOSED";
 
-  const markPaidMutation = useMarkAccountPaid({
+  const markPaidMutation = useMarkAccountPaid(group.id, {
     onSuccess: () => {
       onMutate();
       onClose();
@@ -1221,7 +1221,7 @@ function AccountDetailModal({
     onError: (e) => setError(e.message),
   });
 
-  const unmarkPaidMutation = useUnmarkAccountPaid({
+  const unmarkPaidMutation = useUnmarkAccountPaid(group.id, {
     onSuccess: () => {
       onMutate();
       onClose();
@@ -1229,7 +1229,7 @@ function AccountDetailModal({
     onError: (e) => setError(e.message),
   });
 
-  const deleteMutation = useDeleteAccount({
+  const deleteMutation = useDeleteAccount(group.id, {
     onSuccess: () => {
       onMutate();
       onClose();
@@ -1237,7 +1237,7 @@ function AccountDetailModal({
     onError: (e) => setError(e.message),
   });
 
-  const deferMutation = useDeferAccount({
+  const deferMutation = useDeferAccount(group.id, {
     onSuccess: () => {
       onMutate();
       onClose();
