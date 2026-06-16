@@ -1,4 +1,5 @@
 import { BottomNav, Sidebar } from "@/components/sidebar";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -15,7 +16,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           flexDirection: "column",
         }}
       >
-        {children}
+        <ErrorBoundary>{children}</ErrorBoundary>
       </div>
       <BottomNav />
     </div>
