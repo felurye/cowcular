@@ -8,13 +8,13 @@ export type MemberRef = {
 export type CategoryRef = { id: string; name: string; icon: string | null } | null;
 
 export type AccountInput = {
-  amount: number | string;
+  amount: number;
   type: string;
   category: CategoryRef;
   paid_by: MemberRef | null;
   splits: Array<{
     member_id: string;
-    amount_due: number | string;
+    amount_due: number;
     member: MemberRef;
   }> | null;
 };
@@ -64,7 +64,7 @@ export function buildBalanceData(accounts: AccountInput[]): {
     const paidBy = acc.paid_by;
     if (!paidBy || !acc.splits?.length) continue;
 
-    const amount = Number(acc.amount);
+    const amount = acc.amount;
     if (acc.type === "INCOME") {
       totalIncome += amount;
     } else {
@@ -85,7 +85,7 @@ export function buildBalanceData(accounts: AccountInput[]): {
     for (const split of acc.splits) {
       const m = split.member;
       ensure(m);
-      const due = Number(split.amount_due);
+      const due = split.amount_due;
       balanceMap.get(paidBy.id)!.balance += due;
       balanceMap.get(m.id)!.balance -= due;
     }
