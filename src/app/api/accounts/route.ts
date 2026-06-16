@@ -1,6 +1,27 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getServerSupabase } from "@/lib/supabase-server";
+
+const createAccountSchema = z.object({
+  title: z.string().min(1, "Título obrigatório").max(200),
+  amount: z.number().positive("Valor deve ser positivo"),
+  dueDate: z.string().optional().nullable(),
+  categoryId: z.string().uuid().optional().nullable(),
+  type: z.enum(["EXPENSE", "INCOME"]).optional().default("EXPENSE"),
+  recurrence: z.enum(["ONCE", "RECURRING", "INSTALLMENT"]).optional().default("ONCE"),
+  totalInstallments: z.number().int().min(2).optional().nullable(),
+  groupId: z.string().uuid("groupId inválido"),
+  paidByMemberId: z.string().uuid("paidByMemberId inválido"),
+  splits: z
+    .array(
+      z.object({
+        memberId: z.string().uuid(),
+        percentage: z.number().min(0).max(100),
+      }),
+    )
+    .optional(),
+});
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -50,22 +71,12 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
-  const body = (await request.json()) as {
-    title?: string;
-    amount?: number;
-    dueDate?: string;
-    categoryId?: string;
-    type?: string;
-    recurrence?: string;
-    totalInstallments?: number;
-    groupId?: string;
-    paidByMemberId?: string;
-    splits?: Array<{ memberId: string; percentage: number }>;
-  };
-
-  if (!body.title || !body.amount || !body.groupId || !body.paidByMemberId) {
-    return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
+  const raw = await request.json();
+  const parsed = createAccountSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
   }
+  const body = parsed.data;
 
   const { data: account, error: accountError } = await supabaseAdmin
     .from("accounts")

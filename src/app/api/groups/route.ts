@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { generateCode } from "@/lib/group-utils";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getServerSupabase } from "@/lib/supabase-server";
+
+const createGroupSchema = z.object({
+  name: z.string().min(1, "Nome obrigatório").max(100),
+  type: z.enum(["HOME", "EVENT"]).optional().default("HOME"),
+  eventType: z.enum(["TRIP", "BBQ", "GIFT", "FUNDRAISER", "GENERAL"]).nullable().optional(),
+  closingMode: z.string().nullable().optional(),
+});
 
 export async function GET() {
   const supabase = await getServerSupabase();
@@ -35,16 +43,12 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
-  const body = (await request.json()) as {
-    name?: string;
-    type?: string;
-    eventType?: string;
-    closingMode?: string;
-  };
-
-  if (!body.name?.trim()) {
-    return NextResponse.json({ error: "Nome obrigatório" }, { status: 400 });
+  const raw = await request.json();
+  const parsed = createGroupSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
   }
+  const body = parsed.data;
 
   // Tenta inserir com código único — em caso de conflito de código, regenera
   let group: Record<string, unknown> | null = null;
