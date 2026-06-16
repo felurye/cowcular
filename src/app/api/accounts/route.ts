@@ -144,7 +144,13 @@ export async function POST(request: Request) {
           accountTitle: body.title,
         },
       }));
-    if (notifications.length) await supabaseAdmin.from("notifications").insert(notifications);
+    if (notifications.length) {
+      try {
+        await supabaseAdmin.from("notifications").insert(notifications);
+      } catch (notifError) {
+        console.error("[notifications] falha ao inserir notificações:", notifError);
+      }
+    }
   }
 
   return NextResponse.json(account, { status: 201 });
