@@ -12,11 +12,17 @@ export const accountKeys = {
     status ? (["accounts", groupId, status] as const) : (["accounts", groupId] as const),
 };
 
-export function useAccountList(groupId: string, status?: string, opts?: { enabled?: boolean }) {
+export function useAccountList(
+  groupId: string,
+  status?: string,
+  opts?: { enabled?: boolean; page?: number; limit?: number },
+) {
   const params = new URLSearchParams({ groupId });
   if (status) params.set("status", status);
+  if (opts?.page) params.set("page", String(opts.page));
+  if (opts?.limit) params.set("limit", String(opts.limit));
   return useQuery({
-    queryKey: accountKeys.byGroup(groupId, status),
+    queryKey: [...accountKeys.byGroup(groupId, status), opts?.page, opts?.limit],
     queryFn: () => apiFetch(`/api/accounts?${params}`),
     enabled: (opts?.enabled ?? true) && !!groupId,
   });

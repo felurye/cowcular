@@ -6,6 +6,12 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const groupId = searchParams.get("groupId");
   const status = searchParams.get("status");
+  const pageParam = searchParams.get("page");
+  const limitParam = searchParams.get("limit");
+  const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
+  const limit = Math.min(200, Math.max(1, parseInt(limitParam ?? "50", 10) || 50));
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
 
   const supabase = await getServerSupabase();
   const {
@@ -26,7 +32,8 @@ export async function GET(request: Request) {
          member:group_members(id, user_id, external_name, user:profiles(id, username, name)))`,
     )
     .eq("group_id", groupId)
-    .order("due_date", { ascending: false });
+    .order("due_date", { ascending: false })
+    .range(from, to);
 
   if (status) query = query.eq("status", status);
 
