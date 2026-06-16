@@ -18,7 +18,6 @@ export function useCategoryList(groupId: string) {
   return useQuery({
     queryKey: ["categories", groupId],
     queryFn: () => apiFetch<CategoryItem[]>(`/api/categories?groupId=${groupId}`),
-    staleTime: 5 * 60_000,
     enabled: !!groupId,
   });
 }
