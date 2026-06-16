@@ -34,7 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="pt-BR"
       className={`${displayFont.variable} ${bodyFont.variable} ${monoFont.variable} h-full`}
     >
-      <body className="h-full">
+      <body className="h-full" suppressHydrationWarning>
         <QueryProvider>{children}</QueryProvider>
       </body>
     </html>
