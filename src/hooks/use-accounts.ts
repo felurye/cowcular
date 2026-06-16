@@ -5,6 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { apiFetch, jsonPost } from "@/lib/api-fetch";
+import { transferKeys } from "@/hooks/use-transfers";
 
 export const accountKeys = {
   byGroup: (groupId: string, status?: string) =>
@@ -22,14 +23,15 @@ export function useAccountList(groupId: string, status?: string, opts?: { enable
 }
 
 export function useCreateAccount(
+  groupId: string,
   opts?: Pick<UseMutationOptions<unknown, Error, unknown>, "onSuccess" | "onError">,
 ) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: unknown) => jsonPost("/api/accounts", data),
     onSuccess: async (...args) => {
-      await qc.invalidateQueries({ queryKey: ["accounts"] });
-      await qc.invalidateQueries({ queryKey: ["transfers"] });
+      await qc.invalidateQueries({ queryKey: accountKeys.byGroup(groupId) });
+      await qc.invalidateQueries({ queryKey: transferKeys.all(groupId) });
       opts?.onSuccess?.(...args);
     },
     onError: opts?.onError,
@@ -37,13 +39,14 @@ export function useCreateAccount(
 }
 
 export function useMarkAccountPaid(
+  groupId: string,
   opts?: Pick<UseMutationOptions<unknown, Error, { id: string }>, "onSuccess" | "onError">,
 ) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id }: { id: string }) => jsonPost(`/api/accounts/${id}/mark-paid`, {}),
     onSuccess: async (...args) => {
-      await qc.invalidateQueries({ queryKey: ["accounts"] });
+      await qc.invalidateQueries({ queryKey: accountKeys.byGroup(groupId) });
       opts?.onSuccess?.(...args);
     },
     onError: opts?.onError,
@@ -51,13 +54,14 @@ export function useMarkAccountPaid(
 }
 
 export function useUnmarkAccountPaid(
+  groupId: string,
   opts?: Pick<UseMutationOptions<unknown, Error, { id: string }>, "onSuccess" | "onError">,
 ) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id }: { id: string }) => jsonPost(`/api/accounts/${id}/unmark-paid`, {}),
     onSuccess: async (...args) => {
-      await qc.invalidateQueries({ queryKey: ["accounts"] });
+      await qc.invalidateQueries({ queryKey: accountKeys.byGroup(groupId) });
       opts?.onSuccess?.(...args);
     },
     onError: opts?.onError,
@@ -65,6 +69,7 @@ export function useUnmarkAccountPaid(
 }
 
 export function useDeleteAccount(
+  groupId: string,
   opts?: Pick<
     UseMutationOptions<unknown, Error, { id: string; force?: boolean }>,
     "onSuccess" | "onError"
@@ -75,7 +80,7 @@ export function useDeleteAccount(
     mutationFn: ({ id, force }: { id: string; force?: boolean }) =>
       apiFetch(`/api/accounts/${id}${force ? "?force=true" : ""}`, { method: "DELETE" }),
     onSuccess: async (...args) => {
-      await qc.invalidateQueries({ queryKey: ["accounts"] });
+      await qc.invalidateQueries({ queryKey: accountKeys.byGroup(groupId) });
       opts?.onSuccess?.(...args);
     },
     onError: opts?.onError,
@@ -83,6 +88,7 @@ export function useDeleteAccount(
 }
 
 export function useDeferAccount(
+  groupId: string,
   opts?: Pick<
     UseMutationOptions<unknown, Error, { id: string; targetMonth: Date }>,
     "onSuccess" | "onError"
@@ -93,7 +99,7 @@ export function useDeferAccount(
     mutationFn: ({ id, targetMonth }: { id: string; targetMonth: Date }) =>
       jsonPost(`/api/accounts/${id}/defer`, { targetMonth }),
     onSuccess: async (...args) => {
-      await qc.invalidateQueries({ queryKey: ["accounts"] });
+      await qc.invalidateQueries({ queryKey: accountKeys.byGroup(groupId) });
       opts?.onSuccess?.(...args);
     },
     onError: opts?.onError,
@@ -101,6 +107,7 @@ export function useDeferAccount(
 }
 
 export function useUpdateAccount(
+  groupId: string,
   opts?: Pick<
     UseMutationOptions<unknown, Error, { id: string; data: unknown }>,
     "onSuccess" | "onError"
@@ -115,8 +122,8 @@ export function useUpdateAccount(
         body: JSON.stringify(data),
       }),
     onSuccess: async (...args) => {
-      await qc.invalidateQueries({ queryKey: ["accounts"] });
-      await qc.invalidateQueries({ queryKey: ["transfers"] });
+      await qc.invalidateQueries({ queryKey: accountKeys.byGroup(groupId) });
+      await qc.invalidateQueries({ queryKey: transferKeys.all(groupId) });
       opts?.onSuccess?.(...args);
     },
     onError: opts?.onError,
