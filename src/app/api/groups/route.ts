@@ -46,29 +46,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Nome obrigatório" }, { status: 400 });
   }
 
-  let code = generateCode();
-  for (let i = 0; i < 5; i++) {
-    const { data: existing } = await supabaseAdmin
-      .from("groups")
-      .select("id")
-      .eq("code", code)
-      .single();
-    if (!existing) break;
-    code = generateCode();
-  }
+  // Tenta inserir com código único — em caso de conflito de código, regenera
+  let group: Record<string, unknown> | null = null;
+  let groupError: { message: string; code?: string } | null = null;
 
-  const { data: group, error: groupError } = await supabaseAdmin
-    .from("groups")
-    .insert({
-      name: body.name.trim(),
-      type: body.type ?? "HOME",
-      event_type: body.eventType ?? null,
-      code,
-      status: "ACTIVE",
-      closing_mode: body.closingMode ?? null,
-    })
-    .select()
-    .single();
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = generateCode();
+    const result = await supabaseAdmin
+      .from("groups")
+      .insert({
+        name: body.name.trim(),
+        type: body.type ?? "HOME",
+        event_type: body.eventType ?? null,
+        code,
+        status: "ACTIVE",
+        closing_mode: body.closingMode ?? null,
+      })
+      .select()
+      .single();
+
+    group = result.data;
+    groupError = result.error;
+
+    // código 23505 = unique_violation no PostgreSQL
+    if (!groupError || groupError.code !== "23505") break;
+  }
 
   if (groupError) return NextResponse.json({ error: groupError.message }, { status: 500 });
 
