@@ -129,6 +129,33 @@ export function useAddExternalMember(
   });
 }
 
+export function useUpdateMemberRole(
+  opts?: Pick<UseMutationOptions<unknown, Error, unknown>, "onSuccess" | "onError">,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      groupId,
+      memberId,
+      role,
+    }: {
+      groupId: string;
+      memberId: string;
+      role: "ADMIN" | "MEMBER";
+    }) =>
+      apiFetch(`/api/groups/${groupId}/members/${memberId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role }),
+      }),
+    onSuccess: async (...args) => {
+      await qc.invalidateQueries({ queryKey: groupKeys.all });
+      opts?.onSuccess?.(...args);
+    },
+    onError: opts?.onError,
+  });
+}
+
 export function useRemoveMember(
   opts?: Pick<UseMutationOptions<unknown, Error, unknown>, "onSuccess" | "onError">,
 ) {

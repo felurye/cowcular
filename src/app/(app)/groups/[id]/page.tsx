@@ -38,6 +38,7 @@ import {
   useInviteByUsername,
   useRemoveMember,
   useUpdateGroup,
+  useUpdateMemberRole,
 } from "@/hooks/use-groups";
 import { useConfirmTransfer, useMarkTransferPaid, useTransferList } from "@/hooks/use-transfers";
 import { useAuthStore } from "@/store/auth";
@@ -2231,6 +2232,10 @@ function MembersTab({
     onError: (e) => setError(e.message),
   });
 
+  const rolesMutation = useUpdateMemberRole({
+    onError: (e) => setError(e.message),
+  });
+
   const activeMembers = group.members.filter((m) => !m.left_at);
 
   return (
@@ -2378,6 +2383,33 @@ function MembersTab({
                   >
                     Admin
                   </span>
+                )}
+                {isAdmin && !isMe && !isExternal && (
+                  <button
+                    type="button"
+                    disabled={rolesMutation.isPending}
+                    onClick={() =>
+                      rolesMutation.mutate({
+                        groupId: group.id,
+                        memberId: m.id,
+                        role: m.role === "ADMIN" ? "MEMBER" : "ADMIN",
+                      })
+                    }
+                    style={{
+                      background: "none",
+                      border: "1px solid var(--line-strong)",
+                      borderRadius: 7,
+                      cursor: "pointer",
+                      color: "var(--ink-soft)",
+                      fontSize: 11.5,
+                      fontWeight: 650,
+                      padding: "3px 8px",
+                      fontFamily: "var(--font-body)",
+                    }}
+                    title={m.role === "ADMIN" ? "Remover admin" : "Tornar admin"}
+                  >
+                    {m.role === "ADMIN" ? "Remover admin" : "Tornar admin"}
+                  </button>
                 )}
                 {isAdmin && !isMe && (
                   <button
