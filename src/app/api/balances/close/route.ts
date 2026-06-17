@@ -30,7 +30,7 @@ export async function POST(request: Request) {
 
   const { data: accounts } = await supabaseAdmin
     .from("accounts")
-    .select("amount, account_splits(member_id, amount_due)")
+    .select("amount::float8, account_splits(member_id, amount_due::float8)")
     .eq("group_id", groupId)
     .eq("status", "PAID")
     .gte("due_date", `${year}-${String(month).padStart(2, "0")}-01`)

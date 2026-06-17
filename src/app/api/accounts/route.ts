@@ -45,11 +45,11 @@ export async function GET(request: Request) {
   let query = supabaseAdmin
     .from("accounts")
     .select(
-      `id, title, amount, currency, due_date, status, type, recurrence,
+      `id, title, amount::float8, currency, due_date, status, type, recurrence,
        total_installments, installment_number,
        category:categories(id, name, icon, color),
        paid_by:group_members!paid_by_member_id(id, user_id, external_name, user:profiles(id, username, name)),
-       splits:account_splits(id, member_id, percentage, amount_due, status,
+       splits:account_splits(id, member_id, percentage, amount_due::float8, status,
          member:group_members(id, user_id, external_name, user:profiles(id, username, name)))`,
     )
     .eq("group_id", groupId)

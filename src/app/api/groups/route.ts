@@ -77,6 +77,7 @@ export async function POST(request: Request) {
   }
 
   if (groupError) return NextResponse.json({ error: groupError.message }, { status: 500 });
+  if (!group) return NextResponse.json({ error: "Falha ao criar grupo" }, { status: 500 });
 
   const { error: memberError } = await supabaseAdmin.from("group_members").insert({
     group_id: group.id,

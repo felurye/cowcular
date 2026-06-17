@@ -145,20 +145,6 @@ describe("buildBalanceData", () => {
     expect(totalExpense).toBe(0);
     expect(categoryMap.size).toBe(0);
   });
-
-  it("aceita amount como string (dado do Supabase)", () => {
-    const { totalExpense } = buildBalanceData([
-      {
-        amount: "150.50",
-        type: "EXPENSE",
-        category: null,
-        paid_by: alice,
-        splits: [{ member_id: "m1", amount_due: "150.50", member: alice }],
-      },
-    ]);
-
-    expect(totalExpense).toBe(150.5);
-  });
 });
 
 describe("calculateMinTransfers", () => {
