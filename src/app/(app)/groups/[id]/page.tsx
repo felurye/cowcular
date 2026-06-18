@@ -837,6 +837,10 @@ function EditAccountModal({
   onSuccess: () => void;
 }) {
   const activeMembers = group.members.filter((m) => !m.left_at);
+  const departedPayer =
+    account.paid_by && !activeMembers.some((m) => m.id === account.paid_by!.id)
+      ? account.paid_by
+      : null;
 
   const getEditSplits = () => {
     if (account.splits.length > 0) {
@@ -860,7 +864,9 @@ function EditAccountModal({
   );
   const [categoryId, setCategoryId] = useState(account.category?.id ?? "");
   const [type, setType] = useState<AccountType>(account.type);
-  const [paidByMemberId, setPaidByMemberId] = useState(account.paid_by?.id ?? "");
+  const [paidByMemberId, setPaidByMemberId] = useState(
+    account.paid_by?.id ?? activeMembers[0]?.id ?? "",
+  );
   const [useSplits, setUseSplits] = useState(account.splits.length > 0);
   const [splits, setSplits] = useState(getEditSplits);
   const [replicateToFuture, setReplicateToFuture] = useState(false);
@@ -1021,6 +1027,11 @@ function EditAccountModal({
               onChange={(e) => setPaidByMemberId(e.target.value)}
               required
             >
+              {departedPayer && (
+                <option key={departedPayer.id} value={departedPayer.id}>
+                  {memberName(departedPayer)}
+                </option>
+              )}
               {activeMembers.map((m) => (
                 <option key={m.id} value={m.id}>
                   {memberName(m)}
