@@ -353,15 +353,28 @@ function CategorySelect({
   const { data: categories } = useCategoryList(groupId);
   const [showNew, setShowNew] = useState(false);
   const [newName, setNewName] = useState("");
+  const [newIcon, setNewIcon] = useState("");
 
   const createMutation = useCreateCategory({
     onSuccess: (created) => {
       onChange(created.id);
       setShowNew(false);
       setNewName("");
+      setNewIcon("");
     },
     onError: (e) => onError(e.message),
   });
+
+  function handleCancel() {
+    setShowNew(false);
+    setNewName("");
+    setNewIcon("");
+  }
+
+  function handleCreate() {
+    if (!newName.trim()) return;
+    createMutation.mutate({ name: newName.trim(), icon: newIcon || undefined, groupId });
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
@@ -376,64 +389,78 @@ function CategorySelect({
         ))}
       </select>
       {showNew ? (
-        <div style={{ display: "flex", gap: 6 }}>
-          <input
-            placeholder="Nome da categoria"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            // biome-ignore lint/a11y/noAutofocus: foco intencional ao abrir campo de nova categoria
-            autoFocus
-            style={{ ...inputStyle, flex: 1 }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && newName.trim()) {
-                e.preventDefault();
-                createMutation.mutate({ name: newName.trim(), groupId });
-              }
-              if (e.key === "Escape") {
-                setShowNew(false);
-                setNewName("");
-              }
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => {
-              setShowNew(false);
-              setNewName("");
-            }}
-            style={{
-              background: "transparent",
-              color: "var(--ink-faint)",
-              border: "1px solid var(--line-strong)",
-              borderRadius: 9,
-              padding: "8px 10px",
-              fontSize: 13,
-              cursor: "pointer",
-              fontFamily: "var(--font-body)",
-              whiteSpace: "nowrap",
-            }}
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            disabled={!newName.trim() || createMutation.isPending}
-            onClick={() => createMutation.mutate({ name: newName.trim(), groupId })}
-            style={{
-              background: "var(--amber)",
-              color: "#3a2a08",
-              border: "none",
-              borderRadius: 9,
-              padding: "8px 12px",
-              fontSize: 13,
-              fontWeight: 650,
-              cursor: "pointer",
-              fontFamily: "var(--font-body)",
-              whiteSpace: "nowrap",
-            }}
-          >
-            Criar
-          </button>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input
+              placeholder="😀"
+              value={newIcon}
+              onChange={(e) => {
+                const first = [...new Intl.Segmenter().segment(e.target.value)][0]?.segment ?? "";
+                setNewIcon(first);
+              }}
+              style={{
+                ...inputStyle,
+                width: 48,
+                flexShrink: 0,
+                textAlign: "center",
+                fontSize: 18,
+                padding: "10px 0",
+              }}
+            />
+            <input
+              placeholder="Nome da categoria"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              // biome-ignore lint/a11y/noAutofocus: foco intencional ao abrir campo de nova categoria
+              autoFocus
+              style={{ ...inputStyle, flex: 1 }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newName.trim()) {
+                  e.preventDefault();
+                  handleCreate();
+                }
+                if (e.key === "Escape") handleCancel();
+              }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              type="button"
+              onClick={handleCancel}
+              style={{
+                flex: 1,
+                background: "transparent",
+                color: "var(--ink-faint)",
+                border: "1px solid var(--line-strong)",
+                borderRadius: 9,
+                padding: "8px 10px",
+                fontSize: 13,
+                cursor: "pointer",
+                fontFamily: "var(--font-body)",
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={!newName.trim() || createMutation.isPending}
+              onClick={handleCreate}
+              style={{
+                flex: 1,
+                background: "var(--amber)",
+                color: "#3a2a08",
+                border: "none",
+                borderRadius: 9,
+                padding: "8px 12px",
+                fontSize: 13,
+                fontWeight: 650,
+                cursor: "pointer",
+                fontFamily: "var(--font-body)",
+              }}
+            >
+              Criar
+            </button>
+          </div>
         </div>
       ) : (
         <button
@@ -607,7 +634,7 @@ function CreateAccountModal({
           </div>
 
           <div style={{ display: "flex", gap: 12 }}>
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
+            <div style={{ flex: "0 0 145px", display: "flex", flexDirection: "column", gap: 5 }}>
               <label htmlFor="ac-due" style={labelStyle}>
                 Vencimento
               </label>
@@ -978,7 +1005,7 @@ function EditAccountModal({
           </div>
 
           <div style={{ display: "flex", gap: 12 }}>
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
+            <div style={{ flex: "0 0 145px", display: "flex", flexDirection: "column", gap: 5 }}>
               <label htmlFor="ed-due" style={labelStyle}>
                 Vencimento
               </label>
