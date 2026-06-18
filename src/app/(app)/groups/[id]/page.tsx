@@ -865,7 +865,7 @@ function EditAccountModal({
 }) {
   const activeMembers = group.members.filter((m) => !m.left_at);
   const departedPayer =
-    account.paid_by && !activeMembers.some((m) => m.id === account.paid_by!.id)
+    account.paid_by && !activeMembers.some((m) => m.id === account.paid_by?.id)
       ? account.paid_by
       : null;
 
