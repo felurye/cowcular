@@ -82,13 +82,3 @@ cowcular/
 | `npm run lint`      | Executa o linter Biome                |
 | `npm run lint:fix`  | Lint com correção automática          |
 | `npm run check:fix` | Lint + format com correção automática |
-
-## Variáveis de ambiente
-
-Todas as variáveis ficam no `.env` na raiz do projeto.
-
-| Variável                        | Visibilidade          | Uso                                 |
-| ------------------------------- | --------------------- | ----------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`      | Pública (browser)     | Cliente Supabase no navegador       |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Pública (browser)     | Autenticação e queries com RLS      |
-| `SUPABASE_SERVICE_ROLE_KEY`     | Privada (server only) | API routes que precisam ignorar RLS |
