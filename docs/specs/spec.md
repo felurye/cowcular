@@ -31,7 +31,7 @@ Grupo de longa duração para despesas domésticas recorrentes.
 
 **Características exclusivas do Lar:**
 
-- Fechamento mensal (automático ou manual pelo admin).
+- Fechamento mensal (manual pelo admin).
 - Divisão padrão persistente entre membros (sobrescrita por conta individualmente).
 - Suporte a contas recorrentes e parceladas.
 - Balanço mensal com histórico contínuo.
@@ -160,6 +160,16 @@ Grupo temporário criado para um contexto específico e finito.
 - Pode ser customizada por conta: porcentagens diferentes por participante (deve somar 100%).
 - Exemplo: batata frita pedida por 3 de 5 pessoas → apenas os 3 entram na divisão daquela conta.
 
+#### Geração Automática de Ocorrências (recorrente e parcelada)
+
+Contas recorrentes e parceladas sempre têm a ocorrência do mês seguinte pré-criada:
+
+- Ao cadastrar a conta, o sistema cria a conta informada e também a ocorrência do mês seguinte, no mesmo dia do mês. Exemplo: conta recorrente cadastrada com vencimento em 02-07-2026 gera automaticamente a ocorrência de 02-08-2026.
+- Na virada do mês (dia 1), um job agendado cria a ocorrência do mês seguinte para cada conta recorrente do mês que inicia. Exemplo: em 01-08-2026 é criada a ocorrência de 02-09-2026.
+- Para parceladas, a geração ocorre apenas enquanto houver parcelas restantes (`installment_number < total_installments`).
+- A ocorrência gerada copia título, valor, categoria, pagador e divisão da conta de origem, com repasses recalculados para o mês de destino, e mantém referência à conta que a originou.
+- Se o mês de destino não tiver o dia correspondente, o vencimento é ajustado para o último dia do mês (ex.: 31-01 → 28-02).
+
 ### 4.6 Repasses
 
 O sistema calcula automaticamente os repasses devidos ao registrar uma conta compartilhada.
@@ -192,8 +202,8 @@ O sistema calcula automaticamente os repasses devidos ao registrar uma conta com
 ### 4.8 Fechamento Mensal (exclusivo do Lar)
 
 - Configurado por Lar, independente de outros Lares do usuário.
-- **Modo automático:** sistema fecha o mês ao virar a data.
-- **Modo manual:** admin aprova o fechamento; mês fica "em aberto" sem bloquear operações.
+- O fechamento é sempre **manual**: admin aprova o fechamento; mês fica "em aberto" sem bloquear operações.
+- A virada do mês não fecha o mês automaticamente - apenas gera as ocorrências do mês seguinte das contas recorrentes e parceladas (ver 4.5).
 - Edições pós-fechamento são permitidas com alerta de confirmação.
 - **Balanço gerado inclui:**
   - Total gasto por categoria (Lar e individual).
@@ -249,7 +259,7 @@ Filtros aplicáveis: período, grupo, categoria, membro, status.
 | Nova conta adicionada ao grupo                     | Membros do grupo                 |
 | Repasse marcado como pago (aguardando confirmação) | Membro que deve confirmar        |
 | Repasse confirmado                                 | Membro que registrou o pagamento |
-| Mês fechado automaticamente (Lar)                  | Todos os membros do Lar          |
+| Mês fechado pelo admin (Lar)                       | Todos os membros do Lar          |
 | Mês aguardando fechamento manual (Lar)             | Admin do Lar                     |
 | Grupo Avulso encerrado                             | Todos os membros                 |
 | Conta com vencimento próximo (3 dias)              | Responsáveis pela conta          |

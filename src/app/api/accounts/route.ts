@@ -3,25 +3,32 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getServerSupabase } from "@/lib/supabase-server";
 
-const createAccountSchema = z.object({
-  title: z.string().min(1, "Título obrigatório").max(200),
-  amount: z.number().positive("Valor deve ser positivo"),
-  dueDate: z.string().optional().nullable(),
-  categoryId: z.string().uuid().optional().nullable(),
-  type: z.enum(["EXPENSE", "INCOME"]).optional().default("EXPENSE"),
-  recurrence: z.enum(["ONCE", "RECURRING", "INSTALLMENT"]).optional().default("ONCE"),
-  totalInstallments: z.number().int().min(2).optional().nullable(),
-  groupId: z.string().uuid("groupId inválido"),
-  paidByMemberId: z.string().uuid("paidByMemberId inválido"),
-  splits: z
-    .array(
-      z.object({
-        memberId: z.string().uuid(),
-        percentage: z.number().min(0).max(100),
-      }),
-    )
-    .optional(),
-});
+const createAccountSchema = z
+  .object({
+    title: z.string().min(1, "Título obrigatório").max(200),
+    amount: z.number().positive("Valor deve ser positivo"),
+    dueDate: z.string().optional().nullable(),
+    categoryId: z.string().uuid().optional().nullable(),
+    type: z.enum(["EXPENSE", "INCOME"]).optional().default("EXPENSE"),
+    recurrence: z.enum(["ONCE", "RECURRING", "INSTALLMENT"]).optional().default("ONCE"),
+    totalInstallments: z.number().int().min(2).optional().nullable(),
+    groupId: z.string().uuid("groupId inválido"),
+    paidByMemberId: z.string().uuid("paidByMemberId inválido"),
+    splits: z
+      .array(
+        z.object({
+          memberId: z.string().uuid(),
+          percentage: z.number().min(0).max(100),
+        }),
+      )
+      .optional(),
+  })
+  .refine((d) => d.recurrence !== "INSTALLMENT" || !!d.totalInstallments, {
+    message: "Número de parcelas obrigatório para conta parcelada",
+  })
+  .refine((d) => d.recurrence === "ONCE" || !!d.dueDate, {
+    message: "Data de vencimento obrigatória para conta recorrente ou parcelada",
+  });
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -89,6 +96,7 @@ export async function POST(request: Request) {
       type: body.type ?? "EXPENSE",
       recurrence: body.recurrence ?? "ONCE",
       total_installments: body.totalInstallments ?? null,
+      installment_number: body.recurrence === "INSTALLMENT" ? 1 : null,
       status: "OPEN",
       group_id: body.groupId,
       paid_by_member_id: body.paidByMemberId,
@@ -127,6 +135,15 @@ export async function POST(request: Request) {
         year,
         status: "PENDING",
       });
+    }
+  }
+
+  if (account.recurrence !== "ONCE") {
+    const { error: nextError } = await supabaseAdmin.rpc("create_next_occurrence", {
+      p_account_id: account.id,
+    });
+    if (nextError) {
+      console.error("[accounts] falha ao gerar ocorrência do mês seguinte:", nextError);
     }
   }
 
