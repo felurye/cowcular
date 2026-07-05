@@ -16,6 +16,8 @@ import {
   useBalanceList,
   useBalancePreview,
   useCloseBalance,
+  useRevertSettlement,
+  useSettleBalance,
 } from "@/hooks/use-balances";
 import {
   type CategoryItem,
@@ -2840,6 +2842,9 @@ function PreviewTab({ group }: { group: Group }) {
   const isEvent = group.type === "EVENT";
   const [previewMonth, setPreviewMonth] = useState(now.getMonth() + 1);
   const [previewYear, setPreviewYear] = useState(now.getFullYear());
+  const [confirmingSettle, setConfirmingSettle] = useState(false);
+  const [confirmingRevert, setConfirmingRevert] = useState(false);
+  const [settleError, setSettleError] = useState("");
 
   const { data, isLoading } = useBalancePreview(
     group.id,
@@ -2847,7 +2852,28 @@ function PreviewTab({ group }: { group: Group }) {
     isEvent ? undefined : previewYear,
   );
 
+  const settleMutation = useSettleBalance({
+    onSuccess: () => {
+      setConfirmingSettle(false);
+      setSettleError("");
+    },
+    onError: (e) => setSettleError(e.message),
+  });
+
+  const revertMutation = useRevertSettlement({
+    onSuccess: () => {
+      setConfirmingRevert(false);
+      setSettleError("");
+    },
+    onError: (e) => setSettleError(e.message),
+  });
+
   const preview = data as BalancePreview | undefined;
+
+  const monthName = new Date(previewYear, previewMonth - 1, 1).toLocaleDateString("pt-BR", {
+    month: "long",
+  });
+  const periodLabel = isEvent ? "do evento" : `do mês de ${monthName}`;
 
   const currentBalance = group.balances.find(
     (b) => b.month === previewMonth && b.year === previewYear,
@@ -2958,7 +2984,9 @@ function PreviewTab({ group }: { group: Group }) {
             />
           )}
 
-          {preview.netTransfers.length === 0 ? (
+          {settleError && <ErrorBanner msg={settleError} />}
+
+          {preview.netTransfers.length === 0 && !preview.settlement && (
             <div
               style={{
                 textAlign: "center",
@@ -2972,7 +3000,9 @@ function PreviewTab({ group }: { group: Group }) {
               <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
               <p style={{ margin: 0, fontSize: 14 }}>Nenhum repasse necessário neste período.</p>
             </div>
-          ) : (
+          )}
+
+          {preview.netTransfers.length > 0 && (
             <div>
               <div
                 style={{
@@ -3010,6 +3040,245 @@ function PreviewTab({ group }: { group: Group }) {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              <div style={{ marginTop: 14 }}>
+                {!confirmingSettle ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSettleError("");
+                      setConfirmingSettle(true);
+                    }}
+                    style={{
+                      width: "100%",
+                      background: "rgba(63,167,160,.12)",
+                      color: "var(--teal-deep)",
+                      border: "1px solid rgba(63,167,160,.3)",
+                      borderRadius: 11,
+                      padding: "11px 16px",
+                      fontSize: 14,
+                      fontWeight: 650,
+                      cursor: "pointer",
+                      fontFamily: "var(--font-body)",
+                    }}
+                  >
+                    ✓ Abater repasses {periodLabel}
+                  </button>
+                ) : (
+                  <div
+                    style={{
+                      background: "var(--surface)",
+                      border: "1px solid var(--line)",
+                      borderRadius: 13,
+                      padding: "14px 16px",
+                    }}
+                  >
+                    <p style={{ margin: "0 0 12px", fontSize: 13.5, color: "var(--ink-soft)" }}>
+                      Confirmar que o valor líquido final foi pago? Todos os repasses pendentes{" "}
+                      {periodLabel} serão marcados como abatidos.
+                    </p>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        type="button"
+                        disabled={settleMutation.isPending}
+                        onClick={() =>
+                          settleMutation.mutate({
+                            groupId: group.id,
+                            month: isEvent ? undefined : previewMonth,
+                            year: isEvent ? undefined : previewYear,
+                          })
+                        }
+                        style={{
+                          flex: 1,
+                          background: settleMutation.isPending ? "var(--surface-2)" : "var(--teal)",
+                          color: settleMutation.isPending ? "var(--ink-faint)" : "#fff",
+                          border: "none",
+                          borderRadius: 9,
+                          padding: "9px 14px",
+                          fontSize: 13.5,
+                          fontWeight: 650,
+                          cursor: settleMutation.isPending ? "not-allowed" : "pointer",
+                          fontFamily: "var(--font-body)",
+                        }}
+                      >
+                        {settleMutation.isPending ? "Quitando..." : "Confirmar quitação"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={settleMutation.isPending}
+                        onClick={() => setConfirmingSettle(false)}
+                        style={{
+                          background: "var(--surface-2)",
+                          color: "var(--ink-soft)",
+                          border: "none",
+                          borderRadius: 9,
+                          padding: "9px 14px",
+                          fontSize: 13.5,
+                          fontWeight: 650,
+                          cursor: "pointer",
+                          fontFamily: "var(--font-body)",
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {preview.settlement && (
+            <div style={{ marginTop: preview.netTransfers.length > 0 ? 24 : 0 }}>
+              <div
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 650,
+                  color: "var(--ink-faint)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  marginBottom: 10,
+                }}
+              >
+                Repasses abatidos
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {preview.settlement.netTransfers.map((t) => (
+                  <div
+                    key={`settled-${t.fromMemberId}-${t.toMemberId}`}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 12,
+                      padding: "14px 16px",
+                      background: "var(--surface)",
+                      border: "1px solid var(--line)",
+                      borderRadius: 13,
+                    }}
+                  >
+                    <div style={{ fontSize: 14, color: "var(--ink)" }}>
+                      <span style={{ fontWeight: 650 }}>{t.fromName}</span>
+                      <span style={{ color: "var(--ink-faint)" }}> passou </span>
+                      <span style={{ fontWeight: 700 }}>{fmtAmount(t.amount)}</span>
+                      <span style={{ color: "var(--ink-faint)" }}> para </span>
+                      <span style={{ fontWeight: 650 }}>{t.toName}</span>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 650,
+                        padding: "3px 9px",
+                        borderRadius: 7,
+                        background: "rgba(46,128,121,.12)",
+                        color: "var(--teal-deep)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      ✓ Pago
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div
+                style={{
+                  marginTop: 10,
+                  fontSize: 12.5,
+                  color: "var(--ink-faint)",
+                }}
+              >
+                Quitado em {fmtDate(preview.settlement.createdAt)}
+                {preview.settlement.settledBy ? ` por ${preview.settlement.settledBy.name}` : ""}
+                {" - valor final de "}
+                {fmtAmount(preview.settlement.totalAmount)}
+              </div>
+
+              <div style={{ marginTop: 12 }}>
+                {!confirmingRevert ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSettleError("");
+                      setConfirmingRevert(true);
+                    }}
+                    style={{
+                      background: "transparent",
+                      color: "var(--coral)",
+                      border: "1px solid rgba(194,96,63,.3)",
+                      borderRadius: 9,
+                      padding: "8px 14px",
+                      fontSize: 13,
+                      fontWeight: 650,
+                      cursor: "pointer",
+                      fontFamily: "var(--font-body)",
+                    }}
+                  >
+                    ↩ Reverter abatimento
+                  </button>
+                ) : (
+                  <div
+                    style={{
+                      background: "var(--surface)",
+                      border: "1px solid var(--line)",
+                      borderRadius: 13,
+                      padding: "14px 16px",
+                    }}
+                  >
+                    <p style={{ margin: "0 0 12px", fontSize: 13.5, color: "var(--ink-soft)" }}>
+                      Reverter o abatimento {periodLabel}? Os repasses e as divisões voltam a ficar
+                      pendentes.
+                    </p>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        type="button"
+                        disabled={revertMutation.isPending}
+                        onClick={() =>
+                          revertMutation.mutate({
+                            groupId: group.id,
+                            month: isEvent ? undefined : previewMonth,
+                            year: isEvent ? undefined : previewYear,
+                          })
+                        }
+                        style={{
+                          flex: 1,
+                          background: revertMutation.isPending
+                            ? "var(--surface-2)"
+                            : "var(--coral)",
+                          color: revertMutation.isPending ? "var(--ink-faint)" : "#fff",
+                          border: "none",
+                          borderRadius: 9,
+                          padding: "9px 14px",
+                          fontSize: 13.5,
+                          fontWeight: 650,
+                          cursor: revertMutation.isPending ? "not-allowed" : "pointer",
+                          fontFamily: "var(--font-body)",
+                        }}
+                      >
+                        {revertMutation.isPending ? "Revertendo..." : "Confirmar reversão"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={revertMutation.isPending}
+                        onClick={() => setConfirmingRevert(false)}
+                        style={{
+                          background: "var(--surface-2)",
+                          color: "var(--ink-soft)",
+                          border: "none",
+                          borderRadius: 9,
+                          padding: "9px 14px",
+                          fontSize: 13.5,
+                          fontWeight: 650,
+                          cursor: "pointer",
+                          fontFamily: "var(--font-body)",
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

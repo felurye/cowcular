@@ -21,15 +21,24 @@ export type BalancePreview = {
     categoryIcon: string | null;
     totalExpense: number;
   }[];
-  netTransfers: {
-    fromMemberId: string;
-    fromName: string;
-    fromUserId: string | null;
-    toMemberId: string;
-    toName: string;
-    toUserId: string | null;
-    amount: number;
-  }[];
+  netTransfers: PreviewNetTransfer[];
+  settlement: {
+    id: string;
+    createdAt: string;
+    totalAmount: number;
+    netTransfers: PreviewNetTransfer[];
+    settledBy: { id: string; name: string } | null;
+  } | null;
+};
+
+export type PreviewNetTransfer = {
+  fromMemberId: string;
+  fromName: string;
+  fromUserId: string | null;
+  toMemberId: string;
+  toName: string;
+  toUserId: string | null;
+  amount: number;
 };
 
 export function useBalancePreview(groupId: string, month?: number, year?: number) {
@@ -48,6 +57,46 @@ export function useBalanceList(groupId: string) {
     queryKey: ["balances", groupId],
     queryFn: () => apiFetch<unknown[]>(`/api/balances?groupId=${groupId}`),
     enabled: !!groupId,
+  });
+}
+
+export function useSettleBalance(
+  opts?: Pick<
+    UseMutationOptions<unknown, Error, { groupId: string; month?: number; year?: number }>,
+    "onSuccess" | "onError"
+  >,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { groupId: string; month?: number; year?: number }) =>
+      jsonPost("/api/balances/settle", data),
+    onSuccess: async (...args) => {
+      await qc.invalidateQueries({ queryKey: ["balances"] });
+      await qc.invalidateQueries({ queryKey: ["transfers"] });
+      await qc.invalidateQueries({ queryKey: ["accounts"] });
+      opts?.onSuccess?.(...args);
+    },
+    onError: opts?.onError,
+  });
+}
+
+export function useRevertSettlement(
+  opts?: Pick<
+    UseMutationOptions<unknown, Error, { groupId: string; month?: number; year?: number }>,
+    "onSuccess" | "onError"
+  >,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { groupId: string; month?: number; year?: number }) =>
+      jsonPost("/api/balances/settle/revert", data),
+    onSuccess: async (...args) => {
+      await qc.invalidateQueries({ queryKey: ["balances"] });
+      await qc.invalidateQueries({ queryKey: ["transfers"] });
+      await qc.invalidateQueries({ queryKey: ["accounts"] });
+      opts?.onSuccess?.(...args);
+    },
+    onError: opts?.onError,
   });
 }
 

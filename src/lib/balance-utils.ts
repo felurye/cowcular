@@ -15,6 +15,7 @@ export type AccountInput = {
   splits: Array<{
     member_id: string;
     amount_due: number;
+    status?: string;
     member: MemberRef;
   }> | null;
 };
@@ -83,6 +84,8 @@ export function buildBalanceData(accounts: AccountInput[]): {
     ensure(paidBy);
 
     for (const split of acc.splits) {
+      // Splits já quitados (abatimento confirmado) não entram no saldo
+      if (split.status === "PAID") continue;
       const m = split.member;
       ensure(m);
       const due = split.amount_due;

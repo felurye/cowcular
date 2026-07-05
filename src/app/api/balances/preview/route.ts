@@ -28,7 +28,7 @@ export async function GET(request: Request) {
       `id, amount, type, status,
        category:categories(id, name, icon),
        paid_by:group_members!paid_by_member_id(id, user_id, external_name, user:profiles(id, name)),
-       splits:account_splits(member_id, amount_due,
+       splits:account_splits(member_id, amount_due, status,
          member:group_members(id, user_id, external_name, user:profiles(id, name)))`,
     )
     .eq("group_id", groupId)
@@ -60,6 +60,24 @@ export async function GET(request: Request) {
     balance: Math.round(e.balance * 100) / 100,
   }));
 
+  let settlementQuery = supabaseAdmin
+    .from("settlements")
+    .select(
+      "id, month, year, total_amount, net_transfers, created_at, settled_by_user:profiles!settled_by(id, name)",
+    )
+    .eq("group_id", groupId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (month && year) {
+    settlementQuery = settlementQuery.eq("month", Number(month)).eq("year", Number(year));
+  } else {
+    settlementQuery = settlementQuery.is("month", null);
+  }
+
+  const { data: settlements } = await settlementQuery;
+  const lastSettlement = settlements?.[0] ?? null;
+
   const byCategory = Array.from(categoryMap.values())
     .map((c) => ({
       categoryId: c.id,
@@ -75,5 +93,16 @@ export async function GET(request: Request) {
     byMember,
     byCategory,
     netTransfers,
+    settlement: lastSettlement
+      ? {
+          id: lastSettlement.id,
+          createdAt: lastSettlement.created_at,
+          totalAmount: Number(lastSettlement.total_amount),
+          netTransfers: lastSettlement.net_transfers ?? [],
+          settledBy:
+            (lastSettlement.settled_by_user as unknown as { id: string; name: string } | null) ??
+            null,
+        }
+      : null,
   });
 }

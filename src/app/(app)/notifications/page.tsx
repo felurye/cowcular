@@ -49,6 +49,22 @@ const NOTIFICATION_CONFIG: Record<
       `Mês ${p.month ?? ""}/${p.year ?? ""} fechado${p.groupName ? ` em ${p.groupName}` : ""}`,
     href: (p) => (p.groupId ? `/groups/${p.groupId}` : "/dashboard"),
   },
+  MONTH_SETTLED: {
+    icon: "🤝",
+    label: (p) =>
+      p.month
+        ? `Repasses de ${p.month}/${p.year} quitados${p.groupName ? ` em ${p.groupName}` : ""}`
+        : `Repasses quitados${p.groupName ? ` em ${p.groupName}` : ""}`,
+    href: (p) => (p.groupId ? `/groups/${p.groupId}` : "/dashboard"),
+  },
+  SETTLEMENT_REVERTED: {
+    icon: "↩️",
+    label: (p) =>
+      p.month
+        ? `Quitação de ${p.month}/${p.year} revertida${p.groupName ? ` em ${p.groupName}` : ""}`
+        : `Quitação de repasses revertida${p.groupName ? ` em ${p.groupName}` : ""}`,
+    href: (p) => (p.groupId ? `/groups/${p.groupId}` : "/dashboard"),
+  },
   MONTH_AWAITING_CLOSE: {
     icon: "⏰",
     label: (p) => `Mês ${p.month ?? ""}/${p.year ?? ""} aguardando fechamento`,
