@@ -130,6 +130,53 @@ describe("buildBalanceData", () => {
     expect(categoryMap.get("cat1")!.total).toBe(100);
   });
 
+  it("ignora splits quitados (PAID) no saldo, mas mantém o total do período", () => {
+    const { balanceMap, totalExpense } = buildBalanceData([
+      {
+        amount: 100,
+        type: "EXPENSE",
+        category: null,
+        paid_by: alice,
+        splits: [
+          { member_id: "m1", amount_due: 50, status: "PAID", member: alice },
+          { member_id: "m2", amount_due: 50, status: "PAID", member: bob },
+        ],
+      },
+      {
+        amount: 40,
+        type: "EXPENSE",
+        category: null,
+        paid_by: alice,
+        splits: [
+          { member_id: "m1", amount_due: 20, status: "PENDING", member: alice },
+          { member_id: "m2", amount_due: 20, status: "PENDING", member: bob },
+        ],
+      },
+    ]);
+
+    expect(totalExpense).toBe(140);
+    expect(balanceMap.get("m1")!.balance).toBe(20);
+    expect(balanceMap.get("m2")!.balance).toBe(-20);
+  });
+
+  it("trata splits sem status como pendentes", () => {
+    const { balanceMap } = buildBalanceData([
+      {
+        amount: 100,
+        type: "EXPENSE",
+        category: null,
+        paid_by: alice,
+        splits: [
+          { member_id: "m1", amount_due: 50, member: alice },
+          { member_id: "m2", amount_due: 50, member: bob },
+        ],
+      },
+    ]);
+
+    expect(balanceMap.get("m1")!.balance).toBe(50);
+    expect(balanceMap.get("m2")!.balance).toBe(-50);
+  });
+
   it("não registra categoria para INCOME", () => {
     const { categoryMap, totalIncome, totalExpense } = buildBalanceData([
       {
