@@ -57,8 +57,13 @@ export function buildBalanceData(accounts: AccountInput[]): {
   let totalExpense = 0;
   let totalIncome = 0;
 
-  const ensure = (m: MemberRef) => {
-    if (!balanceMap.has(m.id)) balanceMap.set(m.id, { member: m, balance: 0 });
+  const ensure = (m: MemberRef): BalanceEntry => {
+    let entry = balanceMap.get(m.id);
+    if (!entry) {
+      entry = { member: m, balance: 0 };
+      balanceMap.set(m.id, entry);
+    }
+    return entry;
   };
 
   for (const acc of accounts) {
@@ -81,16 +86,15 @@ export function buildBalanceData(accounts: AccountInput[]): {
       }
     }
 
-    ensure(paidBy);
+    const payerEntry = ensure(paidBy);
 
     for (const split of acc.splits) {
       // Splits já quitados (abatimento confirmado) não entram no saldo
       if (split.status === "PAID") continue;
-      const m = split.member;
-      ensure(m);
+      const memberEntry = ensure(split.member);
       const due = split.amount_due;
-      balanceMap.get(paidBy.id)!.balance += due;
-      balanceMap.get(m.id)!.balance -= due;
+      payerEntry.balance += due;
+      memberEntry.balance -= due;
     }
   }
 

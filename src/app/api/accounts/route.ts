@@ -115,14 +115,14 @@ export async function POST(request: Request) {
       account_id: account.id,
       member_id: s.memberId,
       percentage: s.percentage,
-      amount_due: (body.amount! * s.percentage) / 100,
+      amount_due: (body.amount * s.percentage) / 100,
       status: "PENDING",
     }));
     await supabaseAdmin.from("account_splits").insert(splitsToInsert);
 
     for (const s of body.splits) {
       if (s.memberId === body.paidByMemberId) continue;
-      const amountDue = (body.amount! * s.percentage) / 100;
+      const amountDue = (body.amount * s.percentage) / 100;
       if (amountDue <= 0) continue;
 
       await supabaseAdmin.from("transfers").insert({
