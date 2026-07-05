@@ -60,13 +60,13 @@ export async function DELETE(
 
   const { data: myMember } = await supabaseAdmin
     .from("group_members")
-    .select("role")
+    .select("id, role")
     .eq("group_id", id)
     .eq("user_id", user.id)
     .is("left_at", null)
     .single();
 
-  const isSelf = memberId === myMember?.role ? false : true;
+  const isSelf = memberId === myMember?.id;
   if (myMember?.role !== "ADMIN" && !isSelf) {
     return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
   }
