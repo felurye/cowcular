@@ -2,6 +2,49 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getServerSupabase } from "@/lib/supabase-server";
 
+// Refaz os repasses pendentes de uma conta a partir dos splits
+// atuais (M-01): contas com valor zero não geram repasses; editar
+// para valor > 0 recria os repasses com os novos valores.
+async function recalcAccountTransfers(
+  accountId: string,
+  groupId: string,
+  paidByMemberId: string | null,
+  currency: string,
+  dueDate: string | null,
+) {
+  await supabaseAdmin
+    .from("transfers")
+    .delete()
+    .eq("status", "PENDING")
+    .contains("related_account_ids", [accountId]);
+
+  if (!paidByMemberId) return;
+
+  const { data: splits } = await supabaseAdmin
+    .from("account_splits")
+    .select("member_id, amount_due")
+    .eq("account_id", accountId);
+
+  const ref = dueDate ? new Date(dueDate) : new Date();
+  const month = ref.getUTCMonth() + 1;
+  const year = ref.getUTCFullYear();
+
+  for (const s of splits ?? []) {
+    if (s.member_id === paidByMemberId || Number(s.amount_due) <= 0) continue;
+    await supabaseAdmin.from("transfers").insert({
+      from_member_id: s.member_id,
+      to_member_id: paidByMemberId,
+      group_id: groupId,
+      amount: Number(s.amount_due),
+      currency,
+      month,
+      year,
+      status: "PENDING",
+      related_account_ids: [accountId],
+    });
+  }
+}
+
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
@@ -13,7 +56,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const { data: account } = await supabaseAdmin
     .from("accounts")
-    .select("id, title, amount, status, recurrence, due_date, group_id, paid_by_member_id")
+    .select(
+      "id, title, amount, currency, status, recurrence, due_date, group_id, paid_by_member_id",
+    )
     .eq("id", id)
     .single();
 
@@ -80,6 +125,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { error: updateError } = await supabaseAdmin.from("accounts").update(patch).eq("id", id);
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
 
+  const amountChanged = body.amount !== undefined && Number(body.amount) !== Number(account.amount);
+
   if (body.splits !== undefined) {
     await supabaseAdmin.from("account_splits").delete().eq("account_id", id);
     if (body.splits.length > 0) {
@@ -94,6 +141,28 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         })),
       );
     }
+  } else if (amountChanged) {
+    // Só o valor mudou: recalcula amount_due mantendo os percentuais
+    const { data: existingSplits } = await supabaseAdmin
+      .from("account_splits")
+      .select("id, percentage")
+      .eq("account_id", id);
+    for (const s of existingSplits ?? []) {
+      await supabaseAdmin
+        .from("account_splits")
+        .update({ amount_due: (Number(body.amount) * Number(s.percentage)) / 100 })
+        .eq("id", s.id);
+    }
+  }
+
+  if ((amountChanged || body.splits !== undefined) && account.group_id) {
+    await recalcAccountTransfers(
+      id,
+      account.group_id,
+      body.paidByMemberId ?? account.paid_by_member_id,
+      account.currency,
+      body.dueDate !== undefined ? body.dueDate : account.due_date,
+    );
   }
 
   if (body.replicateToFuture && account.recurrence === "RECURRING" && account.due_date) {
@@ -142,6 +211,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
             })),
           );
         }
+      }
+
+      if ((amountChanged || body.splits !== undefined) && account.group_id) {
+        await recalcAccountTransfers(
+          fa.id,
+          account.group_id,
+          body.paidByMemberId ?? account.paid_by_member_id,
+          account.currency,
+          fa.due_date,
+        );
       }
     }
   }

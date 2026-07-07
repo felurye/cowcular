@@ -6,7 +6,7 @@ import { getServerSupabase } from "@/lib/supabase-server";
 const createAccountSchema = z
   .object({
     title: z.string().min(1, "Título obrigatório").max(200),
-    amount: z.number().positive("Valor deve ser positivo"),
+    amount: z.number().nonnegative("Valor não pode ser negativo"),
     dueDate: z.string().optional().nullable(),
     categoryId: z.string().uuid().optional().nullable(),
     type: z.enum(["EXPENSE", "INCOME"]).optional().default("EXPENSE"),
