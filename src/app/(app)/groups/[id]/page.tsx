@@ -1804,9 +1804,15 @@ function AccountsTab({ group, isReadOnly }: { group: Group; isReadOnly: boolean 
 
 // ─── TransfersTab ─────────────────────────────────────────────────────────────
 
+type TransferFilterDir = "all" | "sent" | "received";
+
 function TransfersTab({ group, userId }: { group: Group; userId: string | undefined }) {
   const { data: transfers, isLoading } = useTransferList(group.id);
   const [error, setError] = useState("");
+  const [filterDir, setFilterDir] = useState<TransferFilterDir>("all");
+  const [filterStatus, setFilterStatus] = useState<TransferStatus | "">("");
+  const [filterMonth, setFilterMonth] = useState<number | "">("");
+  const [filterYear, setFilterYear] = useState(new Date().getFullYear());
 
   const markPaidMutation = useMarkTransferPaid({
     onError: (e) => setError(e.message),
@@ -1816,6 +1822,16 @@ function TransfersTab({ group, userId }: { group: Group; userId: string | undefi
   });
 
   const list = transfers as Transfer[] | undefined;
+
+  const filtered = (list ?? []).filter((t) => {
+    const isSent = t.from_member.user_id === userId;
+    const isReceived = t.to_member.user_id === userId;
+    if (filterDir === "sent" && !isSent) return false;
+    if (filterDir === "received" && !isReceived) return false;
+    if (filterStatus && t.status !== filterStatus) return false;
+    if (filterMonth !== "" && (t.month !== filterMonth || t.year !== filterYear)) return false;
+    return true;
+  });
 
   if (isLoading) {
     return (
@@ -1838,8 +1854,88 @@ function TransfersTab({ group, userId }: { group: Group; userId: string | undefi
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            background: "var(--surface-2)",
+            borderRadius: 11,
+            padding: 3,
+            gap: 2,
+          }}
+        >
+          {(["all", "sent", "received"] as TransferFilterDir[]).map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => setFilterDir(d)}
+              style={{
+                border: "none",
+                borderRadius: 8,
+                padding: "7px 13px",
+                fontSize: 13,
+                fontWeight: 650,
+                fontFamily: "var(--font-body)",
+                cursor: "pointer",
+                background: filterDir === d ? "var(--surface)" : "transparent",
+                color: filterDir === d ? "var(--ink)" : "var(--ink-soft)",
+                boxShadow: filterDir === d ? "0 1px 3px rgba(40,30,10,.1)" : "none",
+              }}
+            >
+              {d === "all" ? "Todos" : d === "sent" ? "↑ Enviados" : "↓ Recebidos"}
+            </button>
+          ))}
+        </div>
+
+        <select
+          style={{ ...selectStyle, width: "auto", fontSize: 13, padding: "6px 12px" }}
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value as TransferStatus | "")}
+        >
+          <option value="">Todos os status</option>
+          {(Object.keys(TRANSFER_STATUS_CONFIG) as TransferStatus[]).map((s) => (
+            <option key={s} value={s}>
+              {TRANSFER_STATUS_CONFIG[s].label}
+            </option>
+          ))}
+        </select>
+
+        {group.type === "HOME" && (
+          <>
+            <select
+              style={{ ...selectStyle, width: "auto", fontSize: 13, padding: "6px 12px" }}
+              value={filterMonth}
+              onChange={(e) => setFilterMonth(e.target.value === "" ? "" : Number(e.target.value))}
+            >
+              <option value="">Todos os meses</option>
+              {MONTH_NAMES.map((m, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: month index is stable and meaningful
+                <option key={i} value={i + 1}>
+                  {m}
+                </option>
+              ))}
+            </select>
+            {filterMonth !== "" && (
+              <input
+                style={{ ...inputStyle, width: 90, fontSize: 13, padding: "6px 12px" }}
+                type="number"
+                value={filterYear}
+                onChange={(e) => setFilterYear(Number(e.target.value))}
+                min={2020}
+              />
+            )}
+          </>
+        )}
+      </div>
+
       {error && <ErrorBanner msg={error} />}
-      {list.map((t) => {
+      {filtered.length === 0 && (
+        <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--ink-faint)" }}>
+          <div style={{ fontSize: 36, marginBottom: 10 }}>🔍</div>
+          <p style={{ margin: 0 }}>Nenhum repasse com os filtros aplicados.</p>
+        </div>
+      )}
+      {filtered.map((t) => {
         const isSent = t.from_member.user_id === userId;
         const cfg = TRANSFER_STATUS_CONFIG[t.status];
         const otherMember = isSent ? t.to_member : t.from_member;
