@@ -53,6 +53,9 @@ interface DashAccount {
   due_date: string | null;
   status: "OPEN" | "PAID" | "DEFERRED" | "CLOSED";
   type: "EXPENSE" | "INCOME";
+  recurrence: "ONCE" | "RECURRING" | "INSTALLMENT";
+  total_installments: number | null;
+  installment_number: number | null;
   category: { name: string; color: string | null } | null;
 }
 
@@ -106,6 +109,16 @@ function fmtDate(iso: string | null) {
 function getGroupEmoji(type: GroupType, eventType: EventType | null) {
   if (type === "HOME") return GROUP_EMOJI.HOME;
   return GROUP_EMOJI[eventType ?? "GENERAL"] ?? "📋";
+}
+
+function installmentLabel(a: DashAccount) {
+  if (
+    a.recurrence !== "INSTALLMENT" ||
+    a.installment_number == null ||
+    a.total_installments == null
+  )
+    return null;
+  return `${a.installment_number}/${a.total_installments}`;
 }
 
 function StatCard({
@@ -212,6 +225,21 @@ function GroupUpcomingWidget({ groupId, groupName }: { groupId: string; groupNam
           >
             {a.title}
           </span>
+          {installmentLabel(a) && (
+            <span
+              style={{
+                fontSize: 11.5,
+                fontWeight: 650,
+                padding: "2px 7px",
+                borderRadius: 6,
+                background: "var(--surface-2)",
+                color: "var(--ink-soft)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {installmentLabel(a)}
+            </span>
+          )}
           {a.due_date && (
             <span
               style={{ fontSize: 12, color: "var(--coral)", fontWeight: 650, whiteSpace: "nowrap" }}
@@ -279,6 +307,21 @@ function GroupDeferredWidget({ groupId, groupName }: { groupId: string; groupNam
           >
             {a.title}
           </span>
+          {installmentLabel(a) && (
+            <span
+              style={{
+                fontSize: 11.5,
+                fontWeight: 650,
+                padding: "2px 7px",
+                borderRadius: 6,
+                background: "var(--surface-2)",
+                color: "var(--ink-soft)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {installmentLabel(a)}
+            </span>
+          )}
           <span
             style={{
               fontSize: 13.5,

@@ -211,6 +211,36 @@ function memberName(m: { user: { name: string } | null; external_name: string | 
   return m.user?.name ?? m.external_name ?? "Externo";
 }
 
+function InstallmentBadge({
+  account,
+}: {
+  account: Pick<Account, "recurrence" | "installment_number" | "total_installments">;
+}) {
+  if (
+    account.recurrence !== "INSTALLMENT" ||
+    account.installment_number == null ||
+    account.total_installments == null
+  ) {
+    return null;
+  }
+  return (
+    <span
+      title={`Parcela ${account.installment_number} de ${account.total_installments}`}
+      style={{
+        fontSize: 12,
+        fontWeight: 650,
+        padding: "3px 8px",
+        borderRadius: 7,
+        background: "var(--surface-2)",
+        color: "var(--ink-soft)",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {account.installment_number}/{account.total_installments}
+    </span>
+  );
+}
+
 const inputStyle: React.CSSProperties = {
   border: "1px solid var(--line-strong)",
   borderRadius: 11,
@@ -1361,6 +1391,7 @@ function AccountDetailModal({
             >
               {statusCfg.label}
             </span>
+            <InstallmentBadge account={account} />
             {account.category && (
               <span
                 style={{
@@ -1735,6 +1766,7 @@ function AccountsTab({ group, isReadOnly }: { group: Group; isReadOnly: boolean 
                     {account.paid_by && ` · ${memberName(account.paid_by)}`}
                   </div>
                 </div>
+                <InstallmentBadge account={account} />
                 <span
                   style={{
                     fontSize: 12,
