@@ -17,7 +17,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .eq("user_id", user.id)
     .is("left_at", null)
     .single();
-  if (!myMember) return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
+  if (myMember?.role !== "ADMIN") {
+    return NextResponse.json({ error: "Apenas admins podem adicionar membros" }, { status: 403 });
+  }
 
   const { externalName, externalContact } = (await request.json()) as {
     externalName?: string;
