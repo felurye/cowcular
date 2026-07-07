@@ -11,6 +11,7 @@ const createAccountSchema = z
     categoryId: z.string().uuid().optional().nullable(),
     type: z.enum(["EXPENSE", "INCOME"]).optional().default("EXPENSE"),
     recurrence: z.enum(["ONCE", "RECURRING", "INSTALLMENT"]).optional().default("ONCE"),
+    startWithZero: z.boolean().optional().default(false),
     totalInstallments: z.number().int().min(2).optional().nullable(),
     groupId: z.string().uuid("groupId inválido"),
     paidByMemberId: z.string().uuid("paidByMemberId inválido"),
@@ -85,16 +86,22 @@ export async function POST(request: Request) {
   }
   const body = parsed.data;
 
+  // Recorrente com "iniciar com valor zero" (M-02): nasce com amount 0,
+  // aguardando o preenchimento do valor mês a mês
+  const zeroStart = body.startWithZero && body.recurrence === "RECURRING";
+  const amount = zeroStart ? 0 : body.amount;
+
   const { data: account, error: accountError } = await supabaseAdmin
     .from("accounts")
     .insert({
       title: body.title,
-      amount: body.amount,
+      amount,
       currency: "BRL",
       due_date: body.dueDate ?? null,
       category_id: body.categoryId ?? null,
       type: body.type ?? "EXPENSE",
       recurrence: body.recurrence ?? "ONCE",
+      zero_start: zeroStart,
       total_installments: body.totalInstallments ?? null,
       installment_number: body.recurrence === "INSTALLMENT" ? 1 : null,
       status: "OPEN",
@@ -115,14 +122,14 @@ export async function POST(request: Request) {
       account_id: account.id,
       member_id: s.memberId,
       percentage: s.percentage,
-      amount_due: (body.amount * s.percentage) / 100,
+      amount_due: (amount * s.percentage) / 100,
       status: "PENDING",
     }));
     await supabaseAdmin.from("account_splits").insert(splitsToInsert);
 
     for (const s of body.splits) {
       if (s.memberId === body.paidByMemberId) continue;
-      const amountDue = (body.amount * s.percentage) / 100;
+      const amountDue = (amount * s.percentage) / 100;
       if (amountDue <= 0) continue;
 
       await supabaseAdmin.from("transfers").insert({

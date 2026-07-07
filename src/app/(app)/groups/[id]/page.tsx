@@ -552,6 +552,7 @@ function CreateAccountModal({
   const [categoryId, setCategoryId] = useState("");
   const [type, setType] = useState<AccountType>("EXPENSE");
   const [recurrence, setRecurrence] = useState<Recurrence>("ONCE");
+  const [startWithZero, setStartWithZero] = useState(false);
   const [totalInstallments, setTotalInstallments] = useState("2");
   const [paidByMemberId, setPaidByMemberId] = useState(activeMembers[0]?.id ?? "");
   const [useSplits, setUseSplits] = useState(activeMembers.length > 1);
@@ -581,13 +582,16 @@ function CreateAccountModal({
     if (useSplits && Math.abs(splitTotal - 100) > 0.1)
       return setError("A divisão deve somar 100%.");
 
+    const isZeroStart = recurrence === "RECURRING" && startWithZero;
+
     createMutation.mutate({
       title,
-      amount: Number(amount),
+      amount: isZeroStart ? 0 : Number(amount),
       dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
       categoryId: categoryId || undefined,
       type,
       recurrence,
+      startWithZero: isZeroStart,
       totalInstallments: recurrence === "INSTALLMENT" ? Number(totalInstallments) : undefined,
       groupId: group.id,
       paidByMemberId,
@@ -655,14 +659,18 @@ function CreateAccountModal({
               </label>
               <input
                 id="ac-amount"
-                style={inputStyle}
+                style={{
+                  ...inputStyle,
+                  opacity: recurrence === "RECURRING" && startWithZero ? 0.5 : 1,
+                }}
                 type="number"
                 step="0.01"
                 min="0"
-                value={amount}
+                value={recurrence === "RECURRING" && startWithZero ? "0" : amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0,00"
-                required
+                disabled={recurrence === "RECURRING" && startWithZero}
+                required={!(recurrence === "RECURRING" && startWithZero)}
               />
             </div>
           </div>
@@ -724,6 +732,31 @@ function CreateAccountModal({
                 </div>
               )}
             </div>
+          )}
+
+          {group.type === "HOME" && recurrence === "RECURRING" && (
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "12px 14px",
+                background: "rgba(232,162,61,.08)",
+                border: "1px solid rgba(232,162,61,.25)",
+                borderRadius: 11,
+                cursor: "pointer",
+                fontSize: 13.5,
+                color: "var(--ink-soft)",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={startWithZero}
+                onChange={(e) => setStartWithZero(e.target.checked)}
+                style={{ width: 16, height: 16, cursor: "pointer", accentColor: "var(--amber)" }}
+              />
+              Iniciar com valor zero (preencher o valor mês a mês)
+            </label>
           )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
