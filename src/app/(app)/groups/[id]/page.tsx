@@ -3556,7 +3556,7 @@ export default function GroupPage() {
     { id: "transfers", label: "Repasses" },
     { id: "members", label: memberTabLabel },
     ...(g.type === "HOME" ? [{ id: "balance" as Tab, label: "Histórico" }] : []),
-    { id: "resumo", label: "Resumo" },
+    { id: "resumo", label: "Balanço" },
   ];
 
   const copyCode = async () => {
