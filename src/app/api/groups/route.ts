@@ -83,6 +83,7 @@ export async function POST(request: Request) {
     group_id: group.id,
     user_id: user.id,
     role: "ADMIN",
+    is_creator: true,
   });
 
   if (memberError) return NextResponse.json({ error: memberError.message }, { status: 500 });

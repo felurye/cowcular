@@ -76,7 +76,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .from("groups")
     .select(
       `id, name, type, event_type, code, status, closing_mode, default_split,
-       members:group_members(id, user_id, role, joined_at, left_at, external_name, external_contact,
+       members:group_members(id, user_id, role, is_creator, joined_at, left_at, external_name, external_contact,
          user:profiles(id, username, name, avatar)),
        balances:monthly_balances(id, month, year, status, total_expense, total_by_member, closed_at)`,
     )

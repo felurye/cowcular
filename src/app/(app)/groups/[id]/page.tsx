@@ -64,6 +64,7 @@ interface Member {
   id: string;
   user_id: string | null;
   role: MemberRole;
+  is_creator: boolean;
   left_at: string | null;
   external_name: string | null;
   external_contact: string | null;
@@ -2671,6 +2672,20 @@ function MembersTab({
                     Externo
                   </span>
                 )}
+                {m.is_creator && (
+                  <span
+                    style={{
+                      fontSize: 11.5,
+                      fontWeight: 650,
+                      padding: "2px 8px",
+                      borderRadius: 6,
+                      background: "rgba(63,167,160,.14)",
+                      color: "var(--teal-deep)",
+                    }}
+                  >
+                    Creator
+                  </span>
+                )}
                 {m.role === "ADMIN" && (
                   <span
                     style={{
@@ -2685,7 +2700,7 @@ function MembersTab({
                     Admin
                   </span>
                 )}
-                {isAdmin && !isMe && !isExternal && (
+                {isAdmin && !isMe && !isExternal && !m.is_creator && (
                   <button
                     type="button"
                     disabled={rolesMutation.isPending}
@@ -2712,7 +2727,7 @@ function MembersTab({
                     {m.role === "ADMIN" ? "Remover admin" : "Tornar admin"}
                   </button>
                 )}
-                {isAdmin && !isMe && (
+                {isAdmin && !isMe && !m.is_creator && (
                   <button
                     type="button"
                     disabled={removeMutation.isPending}

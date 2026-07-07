@@ -36,6 +36,21 @@ export async function PATCH(
     return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
   }
 
+  const { data: target } = await supabaseAdmin
+    .from("group_members")
+    .select("is_creator")
+    .eq("id", memberId)
+    .eq("group_id", id)
+    .single();
+
+  if (!target) return NextResponse.json({ error: "Membro não encontrado" }, { status: 404 });
+  if (target.is_creator) {
+    return NextResponse.json(
+      { error: "O criador do grupo não pode ter o papel alterado" },
+      { status: 403 },
+    );
+  }
+
   const { error } = await supabaseAdmin
     .from("group_members")
     .update({ role: parsed.data.role })
@@ -69,6 +84,21 @@ export async function DELETE(
   const isSelf = memberId === myMember?.id;
   if (myMember?.role !== "ADMIN" && !isSelf) {
     return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
+  }
+
+  const { data: target } = await supabaseAdmin
+    .from("group_members")
+    .select("is_creator")
+    .eq("id", memberId)
+    .eq("group_id", id)
+    .single();
+
+  if (!target) return NextResponse.json({ error: "Membro não encontrado" }, { status: 404 });
+  if (target.is_creator) {
+    return NextResponse.json(
+      { error: "O criador do grupo não pode ser removido" },
+      { status: 403 },
+    );
   }
 
   const { error } = await supabaseAdmin
