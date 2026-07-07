@@ -21,11 +21,15 @@ export function useTransferList(groupId?: string, opts?: { refetchInterval?: num
 }
 
 export function useMarkTransferPaid(
-  opts?: Pick<UseMutationOptions<unknown, Error, { id: string }>, "onSuccess" | "onError">,
+  opts?: Pick<
+    UseMutationOptions<unknown, Error, { id: string; description?: string }>,
+    "onSuccess" | "onError"
+  >,
 ) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id }: { id: string }) => jsonPost(`/api/transfers/${id}/mark-paid`, {}),
+    mutationFn: ({ id, description }: { id: string; description?: string }) =>
+      jsonPost(`/api/transfers/${id}/mark-paid`, description ? { description } : {}),
     onSuccess: async (...args) => {
       await qc.invalidateQueries({ queryKey: ["transfers"] });
       opts?.onSuccess?.(...args);

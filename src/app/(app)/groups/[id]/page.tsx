@@ -129,6 +129,8 @@ interface Transfer {
   month: number;
   year: number;
   status: TransferStatus;
+  description: string | null;
+  related_accounts?: { id: string; title: string; due_date: string | null }[];
   from_member: {
     id: string;
     user_id: string | null;
@@ -1806,6 +1808,69 @@ function AccountsTab({ group, isReadOnly }: { group: Group; isReadOnly: boolean 
 
 type TransferFilterDir = "all" | "sent" | "received";
 
+function MarkTransferPaidModal({
+  transfer,
+  isPending,
+  onClose,
+  onConfirm,
+}: {
+  transfer: Transfer;
+  isPending: boolean;
+  onClose: () => void;
+  onConfirm: (description: string) => void;
+}) {
+  const [description, setDescription] = useState("");
+
+  return (
+    <ModalBackdrop onClose={onClose}>
+      <ModalCard title="Marcar repasse como pago" onClose={onClose} maxWidth={400}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            onConfirm(description);
+          }}
+          style={{ display: "flex", flexDirection: "column", gap: 14 }}
+        >
+          <p style={{ margin: 0, fontSize: 13.5, color: "var(--ink-soft)" }}>
+            Repasse de {fmtAmount(transfer.amount, transfer.currency)} para{" "}
+            {memberName(transfer.to_member)}.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            <label htmlFor="tp-desc" style={labelStyle}>
+              Descrição (opcional)
+            </label>
+            <input
+              id="tp-desc"
+              style={inputStyle}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Ex.: pago via Pix"
+              maxLength={200}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={isPending}
+            style={{
+              background: isPending ? "var(--amber-soft)" : "var(--amber)",
+              color: "#3a2a08",
+              fontFamily: "var(--font-body)",
+              fontWeight: 680,
+              fontSize: 14,
+              border: "none",
+              borderRadius: 11,
+              padding: "11px 20px",
+              cursor: isPending ? "not-allowed" : "pointer",
+            }}
+          >
+            {isPending ? "Marcando..." : "Marcar pago"}
+          </button>
+        </form>
+      </ModalCard>
+    </ModalBackdrop>
+  );
+}
+
 function TransfersTab({ group, userId }: { group: Group; userId: string | undefined }) {
   const { data: transfers, isLoading } = useTransferList(group.id);
   const [error, setError] = useState("");
@@ -1813,8 +1878,10 @@ function TransfersTab({ group, userId }: { group: Group; userId: string | undefi
   const [filterStatus, setFilterStatus] = useState<TransferStatus | "">("");
   const [filterMonth, setFilterMonth] = useState<number | "">("");
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
+  const [payingTransfer, setPayingTransfer] = useState<Transfer | null>(null);
 
   const markPaidMutation = useMarkTransferPaid({
+    onSuccess: () => setPayingTransfer(null),
     onError: (e) => setError(e.message),
   });
   const confirmMutation = useConfirmTransfer({
@@ -1854,6 +1921,20 @@ function TransfersTab({ group, userId }: { group: Group; userId: string | undefi
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {payingTransfer && (
+        <MarkTransferPaidModal
+          transfer={payingTransfer}
+          isPending={markPaidMutation.isPending}
+          onClose={() => setPayingTransfer(null)}
+          onConfirm={(description) => {
+            setError("");
+            markPaidMutation.mutate({
+              id: payingTransfer.id,
+              description: description || undefined,
+            });
+          }}
+        />
+      )}
       <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
         <div
           style={{
@@ -1973,7 +2054,26 @@ function TransfersTab({ group, userId }: { group: Group; userId: string | undefi
               </div>
               <div style={{ fontSize: 12.5, color: "var(--ink-faint)", marginTop: 2 }}>
                 {MONTH_NAMES[t.month - 1]} {t.year}
+                {(t.related_accounts ?? []).length > 0 &&
+                  ` · ${(t.related_accounts ?? [])
+                    .map((a) => `${a.title} (${fmtDate(a.due_date)})`)
+                    .join(", ")}`}
               </div>
+              {t.description && (
+                <div
+                  style={{
+                    fontSize: 12.5,
+                    color: "var(--ink-soft)",
+                    marginTop: 2,
+                    fontStyle: "italic",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  “{t.description}”
+                </div>
+              )}
             </div>
             <span
               style={{
@@ -2005,7 +2105,7 @@ function TransfersTab({ group, userId }: { group: Group; userId: string | undefi
               <button
                 type="button"
                 disabled={markPaidMutation.isPending}
-                onClick={() => markPaidMutation.mutate({ id: t.id })}
+                onClick={() => setPayingTransfer(t)}
                 style={{
                   background: "rgba(232,162,61,.14)",
                   color: "var(--amber-deep)",

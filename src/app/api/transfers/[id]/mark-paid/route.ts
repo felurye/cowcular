@@ -2,13 +2,16 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getServerSupabase } from "@/lib/supabase-server";
 
-export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await getServerSupabase();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+  const body = (await req.json().catch(() => ({}))) as { description?: string };
+  const description = body.description?.trim() || null;
 
   const { data: transfer } = await supabaseAdmin
     .from("transfers")
@@ -18,10 +21,10 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
   const toUserId = (transfer?.to_member as unknown as { user_id: string | null } | null)?.user_id;
 
-  const { error } = await supabaseAdmin
-    .from("transfers")
-    .update({ status: "AWAITING_CONFIRMATION" })
-    .eq("id", id);
+  const patch: Record<string, unknown> = { status: "AWAITING_CONFIRMATION" };
+  if (description) patch.description = description;
+
+  const { error } = await supabaseAdmin.from("transfers").update(patch).eq("id", id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

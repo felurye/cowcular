@@ -33,7 +33,7 @@ export async function GET(request: Request) {
   let query = supabaseAdmin
     .from("transfers")
     .select(
-      `id, amount, currency, month, year, status, group_id,
+      `id, amount, currency, month, year, status, group_id, description, related_account_ids,
        from_member:group_members!from_member_id(id, user_id, external_name, user:profiles(id, username, name)),
        to_member:group_members!to_member_id(id, user_id, external_name, user:profiles(id, username, name))`,
     )
@@ -50,5 +50,26 @@ export async function GET(request: Request) {
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json(data);
+  // Resolve as contas de origem (M-06): título e data para exibição
+  const relatedIds = [
+    ...new Set((data ?? []).flatMap((t) => (t.related_account_ids as string[] | null) ?? [])),
+  ];
+
+  let accountsById = new Map<string, { id: string; title: string; due_date: string | null }>();
+  if (relatedIds.length) {
+    const { data: accounts } = await supabaseAdmin
+      .from("accounts")
+      .select("id, title, due_date")
+      .in("id", relatedIds);
+    accountsById = new Map((accounts ?? []).map((a) => [a.id, a]));
+  }
+
+  const enriched = (data ?? []).map((t) => ({
+    ...t,
+    related_accounts: ((t.related_account_ids as string[] | null) ?? [])
+      .map((id) => accountsById.get(id))
+      .filter(Boolean),
+  }));
+
+  return NextResponse.json(enriched);
 }

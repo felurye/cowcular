@@ -19,6 +19,8 @@ interface Transfer {
   year: number;
   status: TransferStatus;
   group_id: string | null;
+  description: string | null;
+  related_accounts?: { id: string; title: string; due_date: string | null }[];
   from_member: {
     id: string;
     user_id: string | null;
@@ -65,6 +67,149 @@ function memberName(m: { user: { name: string } | null; external_name: string | 
   return m.user?.name ?? m.external_name ?? "Externo";
 }
 
+function fmtDate(d: string | null) {
+  if (!d) return "-";
+  return new Date(d).toLocaleDateString("pt-BR");
+}
+
+function MarkPaidModal({
+  transfer,
+  isPending,
+  onClose,
+  onConfirm,
+}: {
+  transfer: Transfer;
+  isPending: boolean;
+  onClose: () => void;
+  onConfirm: (description: string) => void;
+}) {
+  const [description, setDescription] = useState("");
+
+  return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: modal backdrop closes on click
+    // biome-ignore lint/a11y/useKeyWithClickEvents: fechamento acessível pelo botão do modal
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(42,36,27,.45)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 50,
+        padding: 16,
+        backdropFilter: "blur(4px)",
+      }}
+      onClick={onClose}
+    >
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: stop propagation */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: stop propagation */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "var(--surface)",
+          border: "1px solid var(--line)",
+          borderRadius: 20,
+          padding: 28,
+          width: "100%",
+          maxWidth: 400,
+          boxShadow: "0 24px 60px -16px rgba(40,30,10,.3)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 16,
+          }}
+        >
+          <h2
+            style={{
+              margin: 0,
+              fontSize: 18,
+              fontWeight: 800,
+              fontFamily: "var(--font-display)",
+              color: "var(--ink)",
+            }}
+          >
+            Marcar repasse como pago
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 20,
+              color: "var(--ink-faint)",
+              padding: 4,
+            }}
+          >
+            ×
+          </button>
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            onConfirm(description);
+          }}
+          style={{ display: "flex", flexDirection: "column", gap: 14 }}
+        >
+          <p style={{ margin: 0, fontSize: 13.5, color: "var(--ink-soft)" }}>
+            Repasse de {fmtAmount(transfer.amount, transfer.currency)} para{" "}
+            {memberName(transfer.to_member)}.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            <label
+              htmlFor="rp-desc"
+              style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-soft)" }}
+            >
+              Descrição (opcional)
+            </label>
+            <input
+              id="rp-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Ex.: pago via Pix"
+              maxLength={200}
+              style={{
+                border: "1px solid var(--line-strong)",
+                borderRadius: 11,
+                padding: "10px 14px",
+                fontSize: 14,
+                fontFamily: "var(--font-body)",
+                color: "var(--ink)",
+                background: "var(--surface)",
+                width: "100%",
+                outline: "none",
+              }}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={isPending}
+            style={{
+              background: isPending ? "var(--amber-soft)" : "var(--amber)",
+              color: "#3a2a08",
+              fontFamily: "var(--font-body)",
+              fontWeight: 680,
+              fontSize: 14,
+              border: "none",
+              borderRadius: 11,
+              padding: "11px 20px",
+              cursor: isPending ? "not-allowed" : "pointer",
+            }}
+          >
+            {isPending ? "Marcando..." : "Marcar pago"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 type FilterDir = "all" | "sent" | "received";
 type FilterStatus = TransferStatus | "";
 
@@ -73,10 +218,12 @@ export default function RepassesPage() {
   const [filterDir, setFilterDir] = useState<FilterDir>("all");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("");
   const [error, setError] = useState("");
+  const [payingTransfer, setPayingTransfer] = useState<Transfer | null>(null);
 
   const { data: transfers, isLoading } = useTransferList();
 
   const markPaidMutation = useMarkTransferPaid({
+    onSuccess: () => setPayingTransfer(null),
     onError: (e) => setError(e.message),
   });
 
@@ -103,6 +250,20 @@ export default function RepassesPage() {
 
   return (
     <>
+      {payingTransfer && (
+        <MarkPaidModal
+          transfer={payingTransfer}
+          isPending={markPaidMutation.isPending}
+          onClose={() => setPayingTransfer(null)}
+          onConfirm={(description) => {
+            setError("");
+            markPaidMutation.mutate({
+              id: payingTransfer.id,
+              description: description || undefined,
+            });
+          }}
+        />
+      )}
       <div
         style={{
           display: "flex",
@@ -307,12 +468,33 @@ export default function RepassesPage() {
                         marginTop: 2,
                         display: "flex",
                         gap: 8,
+                        flexWrap: "wrap",
                       }}
                     >
                       <span>
                         {MONTH_NAMES[t.month - 1]} {t.year}
                       </span>
+                      {(t.related_accounts ?? []).map((a) => (
+                        <span key={a.id}>
+                          · {a.title} ({fmtDate(a.due_date)})
+                        </span>
+                      ))}
                     </div>
+                    {t.description && (
+                      <div
+                        style={{
+                          fontSize: 12.5,
+                          color: "var(--ink-soft)",
+                          marginTop: 2,
+                          fontStyle: "italic",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        “{t.description}”
+                      </div>
+                    )}
                   </div>
 
                   <span
@@ -349,7 +531,7 @@ export default function RepassesPage() {
                       disabled={markPaidMutation.isPending}
                       onClick={() => {
                         setError("");
-                        markPaidMutation.mutate({ id: t.id });
+                        setPayingTransfer(t);
                       }}
                       style={{
                         background: "rgba(232,162,61,.14)",

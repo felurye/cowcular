@@ -134,6 +134,7 @@ export async function POST(request: Request) {
         month,
         year,
         status: "PENDING",
+        related_account_ids: [account.id],
       });
     }
   }
