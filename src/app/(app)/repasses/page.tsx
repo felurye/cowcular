@@ -550,6 +550,31 @@ export default function RepassesPage() {
                     </button>
                   )}
 
+                  {!isSent && t.status === "PENDING" && (
+                    <button
+                      type="button"
+                      disabled={confirmMutation.isPending}
+                      onClick={() => {
+                        setError("");
+                        confirmMutation.mutate({ id: t.id });
+                      }}
+                      style={{
+                        background: "rgba(63,167,160,.15)",
+                        color: "var(--teal-deep)",
+                        border: "none",
+                        borderRadius: 9,
+                        padding: "8px 14px",
+                        fontSize: 13,
+                        fontWeight: 650,
+                        cursor: "pointer",
+                        fontFamily: "var(--font-body)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      Marcar pago
+                    </button>
+                  )}
+
                   {!isSent && t.status === "AWAITING_CONFIRMATION" && (
                     <button
                       type="button"
