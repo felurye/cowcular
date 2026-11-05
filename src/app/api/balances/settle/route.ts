@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { type AccountInput, buildBalanceData, calculateMinTransfers } from "@/lib/balance-utils";
+import {
+  buildBalanceDataFromTransfers,
+  calculateMinTransfers,
+  type TransferInput,
+} from "@/lib/balance-utils";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getServerSupabase } from "@/lib/supabase-server";
 
@@ -32,13 +36,7 @@ export async function POST(request: Request) {
 
   let query = supabaseAdmin
     .from("accounts")
-    .select(
-      `id, amount, type, status,
-       category:categories(id, name, icon),
-       paid_by:group_members!paid_by_member_id(id, user_id, external_name, user:profiles(id, name)),
-       splits:account_splits(member_id, amount_due, status,
-         member:group_members(id, user_id, external_name, user:profiles(id, name)))`,
-    )
+    .select("id, status")
     .eq("group_id", groupId)
     .in("status", ["OPEN", "PAID"]);
 
@@ -53,7 +51,30 @@ export async function POST(request: Request) {
   const { data: accounts, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const { balanceMap } = buildBalanceData((accounts ?? []) as unknown as AccountInput[]);
+  // Repasses sugeridos (M-07): o valor líquido quitado parte dos
+  // repasses ainda pendentes/aguardando confirmação do período, não
+  // do saldo bruto das contas - o que já foi pago individualmente
+  // não entra na quitação em lote.
+  let transfersQuery = supabaseAdmin
+    .from("transfers")
+    .select(
+      `amount, status,
+       from_member:group_members!from_member_id(id, user_id, external_name, user:profiles(id, name)),
+       to_member:group_members!to_member_id(id, user_id, external_name, user:profiles(id, name))`,
+    )
+    .eq("group_id", groupId);
+  if (month && year) {
+    transfersQuery = transfersQuery.eq("month", month).eq("year", year);
+  }
+
+  const { data: transfersForBalance, error: transfersBalanceError } = await transfersQuery;
+  if (transfersBalanceError) {
+    return NextResponse.json({ error: transfersBalanceError.message }, { status: 500 });
+  }
+
+  const balanceMap = buildBalanceDataFromTransfers(
+    (transfersForBalance ?? []) as unknown as TransferInput[],
+  );
   const netTransfers = calculateMinTransfers(balanceMap);
 
   if (!netTransfers.length) {

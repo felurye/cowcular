@@ -113,9 +113,12 @@ export async function POST(request: Request) {
 
   if (accountError) return NextResponse.json({ error: accountError.message }, { status: 500 });
 
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const year = now.getFullYear();
+  // Repasses sugeridos (M-07): o repasse é atribuído ao mês do
+  // vencimento da conta (como no reagendamento em recalcAccountTransfers
+  // e na geração de ocorrências recorrentes), não ao mês de criação.
+  const transferRef = body.dueDate ? new Date(body.dueDate) : new Date();
+  const month = transferRef.getUTCMonth() + 1;
+  const year = transferRef.getUTCFullYear();
 
   if (body.splits?.length) {
     const splitsToInsert = body.splits.map((s) => ({

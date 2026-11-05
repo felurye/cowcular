@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import {
   type AccountInput,
   buildBalanceData,
+  buildBalanceDataFromTransfers,
   calculateMinTransfers,
   getMemberName,
+  type TransferInput,
 } from "@/lib/balance-utils";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getServerSupabase } from "@/lib/supabase-server";
@@ -51,7 +53,30 @@ export async function GET(request: Request) {
     (accounts ?? []) as unknown as AccountInput[],
   );
 
-  const netTransfers = calculateMinTransfers(balanceMap);
+  // Repasses sugeridos (M-07): gerados a partir dos repasses ainda
+  // pendentes/aguardando confirmação do período, não do saldo bruto
+  // das contas - assim, um repasse marcado como pago individualmente
+  // some da sugestão sem precisar de uma quitação em lote.
+  let transfersQuery = supabaseAdmin
+    .from("transfers")
+    .select(
+      `amount, status,
+       from_member:group_members!from_member_id(id, user_id, external_name, user:profiles(id, name)),
+       to_member:group_members!to_member_id(id, user_id, external_name, user:profiles(id, name))`,
+    )
+    .eq("group_id", groupId);
+
+  if (month && year) {
+    transfersQuery = transfersQuery.eq("month", Number(month)).eq("year", Number(year));
+  }
+
+  const { data: transfers, error: transfersError } = await transfersQuery;
+  if (transfersError) return NextResponse.json({ error: transfersError.message }, { status: 500 });
+
+  const transferBalanceMap = buildBalanceDataFromTransfers(
+    (transfers ?? []) as unknown as TransferInput[],
+  );
+  const netTransfers = calculateMinTransfers(transferBalanceMap);
 
   const byMember = Array.from(balanceMap.values()).map((e) => ({
     memberId: e.member.id,

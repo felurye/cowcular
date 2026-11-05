@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   type BalanceEntry,
   buildBalanceData,
+  buildBalanceDataFromTransfers,
   calculateMinTransfers,
   getMemberName,
   type MemberRef,
+  type TransferInput,
 } from "@/lib/balance-utils";
 
 const alice: MemberRef = {
@@ -191,6 +193,128 @@ describe("buildBalanceData", () => {
     expect(totalIncome).toBe(200);
     expect(totalExpense).toBe(0);
     expect(categoryMap.size).toBe(0);
+  });
+});
+
+describe("buildBalanceDataFromTransfers", () => {
+  it("retorna mapa vazio para lista vazia", () => {
+    const balanceMap = buildBalanceDataFromTransfers([]);
+    expect(balanceMap.size).toBe(0);
+  });
+
+  it("gera o repasse sugerido a partir de um repasse PENDING do mês", () => {
+    const transfers: TransferInput[] = [
+      { amount: 50, status: "PENDING", from_member: bob, to_member: alice },
+    ];
+    const balanceMap = buildBalanceDataFromTransfers(transfers);
+    const netTransfers = calculateMinTransfers(balanceMap);
+
+    expect(netTransfers).toEqual([
+      {
+        fromMemberId: "m2",
+        fromName: "Bob",
+        fromUserId: "u2",
+        toMemberId: "m1",
+        toName: "Alice",
+        toUserId: "u1",
+        amount: 50,
+      },
+    ]);
+  });
+
+  it("soma repasses PENDING entre os mesmos membros antes de sugerir o valor líquido", () => {
+    // Bob deve 50 e 30 a Alice, em contas separadas do mesmo mês
+    const transfers: TransferInput[] = [
+      { amount: 50, status: "PENDING", from_member: bob, to_member: alice },
+      { amount: 30, status: "PENDING", from_member: bob, to_member: alice },
+    ];
+    const balanceMap = buildBalanceDataFromTransfers(transfers);
+    const netTransfers = calculateMinTransfers(balanceMap);
+
+    expect(netTransfers).toHaveLength(1);
+    expect(netTransfers[0].amount).toBe(80);
+  });
+
+  it("líquida repasses em sentidos opostos entre os mesmos dois membros", () => {
+    // Bob deve 50 a Alice numa conta; Alice deve 20 a Bob em outra
+    const transfers: TransferInput[] = [
+      { amount: 50, status: "PENDING", from_member: bob, to_member: alice },
+      { amount: 20, status: "PENDING", from_member: alice, to_member: bob },
+    ];
+    const balanceMap = buildBalanceDataFromTransfers(transfers);
+    const netTransfers = calculateMinTransfers(balanceMap);
+
+    expect(netTransfers).toEqual([
+      {
+        fromMemberId: "m2",
+        fromName: "Bob",
+        fromUserId: "u2",
+        toMemberId: "m1",
+        toName: "Alice",
+        toUserId: "u1",
+        amount: 30,
+      },
+    ]);
+  });
+
+  it("considera AWAITING_CONFIRMATION como dívida ainda em aberto", () => {
+    const transfers: TransferInput[] = [
+      { amount: 40, status: "AWAITING_CONFIRMATION", from_member: bob, to_member: alice },
+    ];
+    const balanceMap = buildBalanceDataFromTransfers(transfers);
+    expect(calculateMinTransfers(balanceMap)).toHaveLength(1);
+  });
+
+  it.each([
+    "CONFIRMED",
+    "OFFSET",
+    "EXTERNAL_PAID",
+  ])("ignora repasses já resolvidos (status %s) no saldo", (status) => {
+    const transfers: TransferInput[] = [{ amount: 40, status, from_member: bob, to_member: alice }];
+    const balanceMap = buildBalanceDataFromTransfers(transfers);
+    expect(calculateMinTransfers(balanceMap)).toHaveLength(0);
+  });
+
+  it("recalcula o repasse sugerido quando um repasse isolado é marcado como pago", () => {
+    // Duas contas do mesmo mês geraram dois repasses de Bob para Alice
+    const beforePayment: TransferInput[] = [
+      { amount: 50, status: "PENDING", from_member: bob, to_member: alice },
+      { amount: 30, status: "PENDING", from_member: bob, to_member: alice },
+    ];
+    const netBefore = calculateMinTransfers(buildBalanceDataFromTransfers(beforePayment));
+    expect(netBefore).toHaveLength(1);
+    expect(netBefore[0].amount).toBe(80);
+
+    // O repasse de 30 é confirmado como pago isoladamente; o de 50 continua pendente
+    const afterPayment: TransferInput[] = [
+      { amount: 50, status: "PENDING", from_member: bob, to_member: alice },
+      { amount: 30, status: "CONFIRMED", from_member: bob, to_member: alice },
+    ];
+    const netAfter = calculateMinTransfers(buildBalanceDataFromTransfers(afterPayment));
+    expect(netAfter).toHaveLength(1);
+    expect(netAfter[0].amount).toBe(50);
+  });
+
+  it("não sugere mais nenhum repasse quando o único pendente é marcado como pago", () => {
+    const afterPayment: TransferInput[] = [
+      { amount: 50, status: "CONFIRMED", from_member: bob, to_member: alice },
+    ];
+    const netAfter = calculateMinTransfers(buildBalanceDataFromTransfers(afterPayment));
+    expect(netAfter).toHaveLength(0);
+  });
+
+  it("minimiza transferências com repasses pendentes entre três membros", () => {
+    // Alice pagou as contas; Bob e Charlie têm repasses pendentes de 30 cada para Alice
+    const transfers: TransferInput[] = [
+      { amount: 30, status: "PENDING", from_member: bob, to_member: alice },
+      { amount: 30, status: "PENDING", from_member: charlie, to_member: alice },
+    ];
+    const netTransfers = calculateMinTransfers(buildBalanceDataFromTransfers(transfers));
+
+    expect(netTransfers).toHaveLength(2);
+    const total = netTransfers.reduce((s, t) => s + t.amount, 0);
+    expect(total).toBe(60);
+    expect(netTransfers.every((t) => t.toMemberId === "m1")).toBe(true);
   });
 });
 

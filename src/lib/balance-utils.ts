@@ -42,6 +42,18 @@ export type NetTransfer = {
   amount: number;
 };
 
+export type TransferInput = {
+  amount: number;
+  status: string;
+  from_member: MemberRef;
+  to_member: MemberRef;
+};
+
+// Repasses nestes status ainda representam dívida em aberto; os
+// demais (CONFIRMED, OFFSET, EXTERNAL_PAID) já foram resolvidos e
+// não devem contar no saldo.
+const OPEN_TRANSFER_STATUSES = new Set(["PENDING", "AWAITING_CONFIRMATION"]);
+
 export function getMemberName(m: MemberRef): string {
   return m.user?.name ?? m.external_name ?? "Externo";
 }
@@ -99,6 +111,35 @@ export function buildBalanceData(accounts: AccountInput[]): {
   }
 
   return { balanceMap, categoryMap, totalExpense, totalIncome };
+}
+
+// Monta o saldo por membro a partir dos repasses (transfers) ainda
+// em aberto de um período, em vez dos splits das contas: assim, um
+// repasse isolado marcado como pago deixa de contar no saldo e os
+// repasses sugeridos são recalculados automaticamente.
+export function buildBalanceDataFromTransfers(
+  transfers: TransferInput[],
+): Map<string, BalanceEntry> {
+  const balanceMap = new Map<string, BalanceEntry>();
+
+  const ensure = (m: MemberRef): BalanceEntry => {
+    let entry = balanceMap.get(m.id);
+    if (!entry) {
+      entry = { member: m, balance: 0 };
+      balanceMap.set(m.id, entry);
+    }
+    return entry;
+  };
+
+  for (const t of transfers) {
+    if (!OPEN_TRANSFER_STATUSES.has(t.status)) continue;
+    const fromEntry = ensure(t.from_member);
+    const toEntry = ensure(t.to_member);
+    fromEntry.balance -= t.amount;
+    toEntry.balance += t.amount;
+  }
+
+  return balanceMap;
 }
 
 export function calculateMinTransfers(balanceMap: Map<string, BalanceEntry>): NetTransfer[] {
