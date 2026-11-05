@@ -2,6 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
+import { CurrencyInput } from "@/components/currency-input";
 import {
   useAccountList,
   useCreateAccount,
@@ -658,20 +659,15 @@ function CreateAccountModal({
               <label htmlFor="ac-amount" style={labelStyle}>
                 Valor (R$)
               </label>
-              <input
+              <CurrencyInput
                 id="ac-amount"
                 style={{
                   ...inputStyle,
                   opacity: recurrence === "RECURRING" && startWithZero ? 0.5 : 1,
                 }}
-                type="number"
-                step="0.01"
-                min="0"
-                value={recurrence === "RECURRING" && startWithZero ? "0" : amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0,00"
+                value={recurrence === "RECURRING" && startWithZero ? 0 : amount}
+                onChange={(v) => setAmount(String(v))}
                 disabled={recurrence === "RECURRING" && startWithZero}
-                required={!(recurrence === "RECURRING" && startWithZero)}
               />
             </div>
           </div>
@@ -1059,15 +1055,11 @@ function EditAccountModal({
               <label htmlFor="ed-amount" style={labelStyle}>
                 Valor (R$)
               </label>
-              <input
+              <CurrencyInput
                 id="ed-amount"
                 style={inputStyle}
-                type="number"
-                step="0.01"
-                min="0"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                required
+                onChange={(v) => setAmount(String(v))}
               />
             </div>
           </div>
@@ -2991,15 +2983,11 @@ function CategoryBudgetsSection({
                     alignItems: "center",
                   }}
                 >
-                  <input
-                    type="number"
+                  <CurrencyInput
                     placeholder="Limite (R$)"
                     value={editLimit}
-                    onChange={(e) => setEditLimit(e.target.value)}
-                    // biome-ignore lint/a11y/noAutofocus: foco intencional ao abrir campo de limite
+                    onChange={(v) => setEditLimit(String(v))}
                     autoFocus
-                    min="0.01"
-                    step="0.01"
                     style={{ ...inputStyle, flex: 1, fontSize: 13, padding: "6px 10px" }}
                   />
                   <button
